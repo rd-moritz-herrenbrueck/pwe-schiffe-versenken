@@ -113,13 +113,14 @@ persistence/  Panache-Entities, Repositories
 
 ### Domänenmodell
 
-- **RuleSet:** `boardWidth`, `boardHeight`, `fleet` (Schiffslängen), `shootAgainOnHit`, `shipsMayTouch`. Standard: 10x10, Flotte 5/4/3/3/2, kein Nochmal-Schießen, Schiffe dürfen sich nicht berühren.
+- **RuleSet:** `boardWidth`, `boardHeight`, `fleet` (Schiffslängen), `shootAgainOnHit`, `shipsMayTouch`. Standard: 10x10, je ein Schiff der Länge 5/4/3/2, kein Nochmal-Schießen, Schiffe dürfen sich nicht berühren. Feld höchstens 25x25, Flotte frei konfigurierbar (nur gerade Schiffe, Länge ≥ 2), muss aber platzierbar sein (Plausibilitätsprüfung abhängig von `shipsMayTouch`).
 - **Board:** Raster, platzierte `Ship`s, empfangene Schüsse.
 - **Ship:** Startkoordinate, Länge, Ausrichtung, Trefferzustand.
 - **Game:** Spieler A/B, je ein `Board`, `phase` (`WAITING`, `PLACEMENT`, `RUNNING`, `FINISHED`, `ABANDONED`), `currentTurn`, `winner`.
 - **Shot-Ergebnis:** `MISS`, `HIT`, `SUNK` (mit Schiff), `WIN`.
 
 Validierungen (serverseitig):
+- `RuleSet` gültig (Feldgröße 1–25, Schiffslängen ≥ 2, Flotte platzierbar).
 - Schiffe liegen im Feld, überschneiden sich nicht und entsprechen der Flotte des `RuleSet`.
 - Schüsse nur in der eigenen Runde, nur in Phase `RUNNING`, nur auf noch nicht beschossene Felder.
 
@@ -196,7 +197,6 @@ Keine festen Werte wie `10` oder feste Flotten im Code: Feldgröße und Flotte i
 
 ## Offene Punkte (vor Umsetzung abstimmen)
 
-- Flotte 5/4/3/3/2 vs. deutsche Variante.
 - JSONB vs. relationales Modell für den Spielzustand.
 - Berührungsregel (`shipsMayTouch`) als Standard.
 - Mehrere Backend-Instanzen würden einen verteilten Event-Bus erfordern (Postgres `LISTEN/NOTIFY` oder Broker).

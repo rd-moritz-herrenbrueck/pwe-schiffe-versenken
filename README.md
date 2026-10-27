@@ -9,7 +9,7 @@ Mehrere Spiele laufen parallel, Spielstände werden gespeichert und können jede
 - Client-Server-Architektur
 - Webapp (Angular)
 - Spielstände speichern und wieder aufnehmen
-- Standardregeln auf 10x10-Feld (Flotte: 5/4/3/3/2)
+- Standardregeln auf 10x10-Feld (Flotte: je ein Schiff der Länge 5, 4, 3 und 2)
 - Mehrere Spiele gleichzeitig
 
 ### Optional (geplant)

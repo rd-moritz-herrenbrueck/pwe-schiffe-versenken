@@ -48,13 +48,17 @@ Die `domain`-Schicht enthält die Regeln und ist ohne Quarkus und DB testbar.
 
 ### 3.2 Domänenmodell
 
-- **RuleSet**: `boardWidth`, `boardHeight`, `fleet` (Liste von Schiffslängen), `shootAgainOnHit`, `shipsMayTouch`. Standard: 10x10, Flotte 5/4/3/3/2, kein Nochmal-Schießen, Schiffe dürfen sich nicht berühren (konfigurierbar).
+- **RuleSet**: `boardWidth`, `boardHeight`, `fleet` (Liste von Schiffslängen), `shootAgainOnHit`, `shipsMayTouch`. Standard: 10x10, je ein Schiff der Länge 5, 4, 3 und 2, kein Nochmal-Schießen, Schiffe dürfen sich nicht berühren (konfigurierbar).
+  - Feldgröße höchstens 25x25.
+  - Flotte frei konfigurierbar: Anzahl und Länge der Schiffe (Länge ≥ 2). Schiffe sind gerade (Breite 1), keine breiten oder gewinkelten Schiffe.
+  - Plausibilitätsprüfung: Ein `RuleSet` ist nur gültig, wenn es mindestens eine regelkonforme Platzierung der gesamten Flotte gibt (abhängig von `shipsMayTouch`). Eine reine Flächenabschätzung genügt nicht (Beispiel: 4x4 mit drei Dreiern ohne Berührung ist unmöglich).
 - **Board**: Raster, platzierte `Ship`s, empfangene Schüsse.
 - **Ship**: Startkoordinate, Länge, Ausrichtung, Trefferzustand.
 - **Game**: Spieler A/B, jeweils ein `Board`, `phase` (`WAITING`, `PLACEMENT`, `RUNNING`, `FINISHED`, `ABANDONED`), `currentTurn`, `winner`.
 - **Shot-Ergebnis**: `MISS`, `HIT`, `SUNK` (mit Schiff), `WIN`.
 
 Validierungen (alle serverseitig):
+- `RuleSet` gültig (Feldgröße 1–25, Schiffslängen ≥ 2, Flotte platzierbar).
 - Schiffe liegen im Feld, überschneiden sich nicht und entsprechen der Flotte des `RuleSet`.
 - Schüsse nur in der eigenen Runde, nur in der Phase `RUNNING`, nur auf noch nicht beschossene Felder.
 

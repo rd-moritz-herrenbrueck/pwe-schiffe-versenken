@@ -15,7 +15,10 @@ Legende: `[ ]` offen · `[x]` erledigt · *(optional)* = Nice-to-have
 - [x] Smoke-Test `HealthTest` (App + DB bereit) außerhalb der Sandbox mit Docker ausführen
 
 ## Phase 2: Domäne (Backend)
-- [ ] `RuleSet` mit Standardwerten (10x10, 5/4/3/3/2)
+- [x] Domänentests vorab geschrieben (TDD, rot) und API-Skelette angelegt
+- [ ] Abnahme der Domänentests
+- [ ] `RuleSet` mit Standardwerten (10x10, 5/4/3/2), Feld max. 25x25, frei konfigurierbare Schiffslängen (≥ 2)
+- [ ] Plausibilitätsprüfung: Flotte muss platzierbar sein (abhängig von `shipsMayTouch`)
 - [ ] `Board`, `Ship`, Koordinaten, Schussergebnisse
 - [ ] Flottenplatzierung inkl. Validierung
 - [ ] Schusslogik (Miss/Hit/Sunk/Win), Rundenwechsel
@@ -51,7 +54,7 @@ Legende: `[ ]` offen · `[x]` erledigt · *(optional)* = Nice-to-have
 - [ ] Unit-Tests für Komponenten und Services
 
 ## Phase 6: Erweiterungen
-- [ ] Einstellbare Regeln und Feldgrößen im UI *(optional)*
+- [ ] Einstellbare Regeln, Feldgrößen (max. 25x25) und Schiffslängen im UI, nur platzierbare Flotten auswählbar *(optional)*
 - [ ] Private Lobby mit Einladungscode *(optional)*
 - [ ] Chat (Backend, SSE, UI)
 - [ ] KI-Gegner (zufällige Platzierung, Hunt/Target), „gegen KI spielen“ im UI
