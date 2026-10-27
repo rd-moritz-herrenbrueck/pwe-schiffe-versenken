@@ -2,7 +2,7 @@
 
 Online-Multiplayer-Version von „Schiffe versenken“ als Webanwendung. Mehrere Spiele laufen parallel, Spielstände werden gespeichert und können jederzeit fortgesetzt werden.
 
-> Das Projekt befindet sich in der Konzeptphase. Maßgeblich sind [`docs/Architektur.md`](../docs/Architektur.md) (Architektur) und [`docs/todo.md`](../docs/todo.md) (Roadmap). Befehle in der README beschreiben den Zielzustand.
+> Das Projektgerüst steht (Phase 1). Maßgeblich sind [`docs/Architektur.md`](../docs/Architektur.md) (Architektur) und [`docs/todo.md`](../docs/todo.md) (Roadmap). Befehle in der README beschreiben den Zielzustand.
 
 ## Sprache und Kommunikation
 
@@ -18,7 +18,8 @@ Online-Multiplayer-Version von „Schiffe versenken“ als Webanwendung. Mehrere
 | Backend | Java, Quarkus (REST + Server-Sent Events), Hibernate Panache |
 | Datenbank | PostgreSQL, Flyway-Migrationen, JSONB für Spielzustand |
 | Build | Maven (Backend), npm (Frontend) |
-| Tests | JUnit 5, `@QuarkusTest`, REST Assured, Testcontainers, Playwright (E2E) |
+| Tests | JUnit 5, `@QuarkusTest`, REST Assured, Testcontainers, Vitest, Playwright (E2E) |
+| Versionen | Java 25, Quarkus 3.40 (LTS), Angular 22, PostgreSQL 17 |
 | Betrieb | Docker / Docker Compose |
 
 ## Projektstruktur
@@ -58,15 +59,25 @@ Regeln dazu:
 |---|---|---|
 | Domäne | JUnit 5 | Platzierung, Schussauswertung, Siegbedingung, `RuleSet`-Varianten, KI-Strategie |
 | Backend-Integration | `@QuarkusTest`, REST Assured, Testcontainers (Postgres) | REST, SSE, Persistenz, Berechtigungen |
-| Frontend-Unit | Jest oder Karma/Jasmine | Komponenten und Services |
+| Frontend-Unit | Vitest (Angular-Standard, `ng test`) | Komponenten und Services |
 | E2E | Playwright (`frontend/e2e/`) | Gegen den Docker-Compose-Stack |
 
-### Befehle (Zielzustand)
+### Entwicklungsumgebung: Sandbox
+
+Copilot entwickelt in einer **Sandbox**. Dort stehen Docker, PostgreSQL und ggf. weitere Infrastruktur **nicht** zur Verfügung. Getestet werden kann jedoch **außerhalb der Sandbox** durch die Entwickler:innen.
+
+- In der Sandbox nur ausführen, was ohne Infrastruktur läuft: Kompilieren (`./mvnw package -DskipTests`), Domänen-Unit-Tests (JUnit ohne `@QuarkusTest`), Frontend-Unit-Tests (`npm test`) und Frontend-Build.
+- Keine Infrastruktur (z. B. PostgreSQL) lokal in der Sandbox installieren. Die Datenbank kommt ausschließlich aus `docker-compose.yml` bzw. Quarkus Dev Services (Testcontainers).
+- Tests, die Docker benötigen (`@QuarkusTest` mit Dev Services/Testcontainers, `docker compose`, Playwright gegen den Stack), trotzdem testgetrieben schreiben. Sie werden außerhalb der Sandbox ausgeführt.
+- Am Ende jeder Aufgabe explizit nennen, welche Tests in der Sandbox gelaufen sind und welche außerhalb ausgeführt werden müssen, inklusive der konkreten Befehle.
+
+### Befehle
 
 ```bash
-cd backend && ./mvnw verify          # Unit- und Integrationstests
-cd frontend && npm test              # Unit-Tests
-cd frontend && npx playwright test   # E2E-Tests (gegen Docker-Compose-Stack)
+cd backend && ./mvnw verify                                       # Unit- und Integrationstests (Docker nötig)
+cd backend && ./mvnw test -Dtest='de.pwe.schiffeversenken.domain.**'  # Nur Domänentests (ohne Docker, Sandbox)
+cd frontend && npm test -- --watch=false                         # Unit-Tests (Vitest)
+cd frontend && npx playwright test                               # E2E-Tests (ab Phase 7)
 ```
 
 Entwicklung:
@@ -75,7 +86,7 @@ Entwicklung:
 docker compose up -d db                          # Datenbank
 cd backend && ./mvnw quarkus:dev                 # Backend (http://localhost:8080)
 cd frontend && npm install && npm start          # Frontend (http://localhost:4200)
-docker compose up --build                        # Gesamter Stack
+docker compose up --build                        # Gesamter Stack (ab Phase 7)
 ```
 
 ## Architekturgrundsätze
@@ -87,6 +98,8 @@ docker compose up --build                        # Gesamter Stack
 - Nach Reload oder SSE-Reconnect lädt der Client den Zustand immer per `GET /api/games/{id}` neu.
 
 ### Backend-Schichten
+
+Basis-Package: `de.pwe.schiffeversenken`
 
 ```
 api/          REST-Ressourcen, SSE-Endpunkte, DTOs

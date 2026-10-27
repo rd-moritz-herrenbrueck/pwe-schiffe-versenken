@@ -35,6 +35,8 @@
 
 ### 3.1 Schichten
 
+Java 25, Quarkus 3.40 (LTS), Basis-Package `de.pwe.schiffeversenken`.
+
 ```
 api/          REST-Ressourcen, SSE-Endpunkte, DTOs
 service/      Anwendungslogik (Lobby, Spiel, Chat, KI-Orchestrierung)
@@ -114,7 +116,12 @@ Gegen die KI startet die Lobby sofort. Die KI platziert ihre Flotte selbst und a
 
 ## 4. Datenbank (PostgreSQL)
 
-Migrationen per Flyway.
+Migrationen per Flyway (`backend/src/main/resources/db/migration`). Hibernate erzeugt kein Schema.
+
+Laufzeitprofile:
+- **dev:** Datenbank aus `docker-compose.yml` (`localhost:5432`, Datenbank/Benutzer `schiffe`).
+- **test:** Quarkus Dev Services startet PostgreSQL per Testcontainers (Docker erforderlich).
+- **prod:** Verbindung über `QUARKUS_DATASOURCE_*`.
 
 | Tabelle | Inhalt |
 |---|---|
@@ -131,7 +138,8 @@ Entscheidungen:
 
 ## 5. Frontend (Angular, TypeScript)
 
-- Standalone Components, Signals, Angular Router, `HttpClient`.
+- Angular 22: Standalone Components, Signals, Angular Router, `HttpClient`.
+- Im Dev-Server leitet `proxy.conf.json` `/api` an `localhost:8080` weiter (kein CORS nötig).
 - **Seiten:** Startseite (Nickname), Lobby-Liste, Lobby erstellen (Regeln), Flotte platzieren, Spiel, Meine Spiele.
 - **Services:** `ApiService` (REST), `EventService` (SSE über `EventSource`), `PlayerService` (Token), `GameStore` (Signals).
 - **Spielfeld:** CSS-Grid, Größe aus dem `RuleSet`. Flotte per Klick/Drag platzieren, Drehen per Taste oder Button.
@@ -144,7 +152,7 @@ Entscheidungen:
 |---|---|---|
 | Domäne | JUnit 5 | Platzierung, Schussauswertung, Siegbedingung, `RuleSet`-Varianten, KI-Strategie |
 | Backend-Integration | `@QuarkusTest`, REST Assured, Testcontainers (Postgres) | REST, SSE, Persistenz, Berechtigungen |
-| Frontend-Unit | Jest oder Karma/Jasmine | Komponenten und Services |
+| Frontend-Unit | Vitest (Angular-Standard, `ng test`) | Komponenten und Services |
 | E2E | Playwright (`frontend/e2e/`) | Gegen den Docker-Compose-Stack |
 
 E2E-Szenarien:

@@ -26,51 +26,56 @@ Mehrere Spiele laufen parallel, Spielstände werden gespeichert und können jede
 | Backend | Java, Quarkus (REST + Server-Sent Events) |
 | Datenbank | PostgreSQL (Flyway-Migrationen, JSONB für Spielzustand) |
 | Build | Maven (Backend), npm (Frontend) |
-| Tests | JUnit 5, `@QuarkusTest`, Testcontainers, Playwright (E2E) |
+| Tests | JUnit 5, `@QuarkusTest`, Testcontainers, Vitest, Playwright (E2E) |
 | Betrieb | Docker / Docker Compose |
 
-## Projektstruktur (geplant)
+## Projektstruktur
 
 ```
-backend/              Quarkus-Anwendung (Maven)
-frontend/             Angular-Anwendung
-  e2e/                Playwright-Tests
+backend/              Quarkus-Anwendung (Maven, Java 25, Quarkus 3.40 LTS)
+  src/main/java/de/pwe/schiffeversenken/
+    api/              REST-Ressourcen, SSE, DTOs
+    service/          Anwendungslogik
+    domain/           Reine Spiellogik (ohne Framework)
+    persistence/      Panache-Entities, Repositories
+  src/main/resources/db/migration/   Flyway-Migrationen
+frontend/             Angular-Anwendung (Angular 22, Vitest)
+  e2e/                Playwright-Tests (ab Phase 7)
 docs/
   Architektur.md      Architekturbeschreibung
   todo.md             Aufgabenliste / Roadmap
-docker-compose.yml    Postgres + Backend + Frontend
+  ai-journal.md       Dokumentation der KI-gestützten Arbeit
+docker-compose.yml    Postgres (Backend + Frontend ab Phase 7)
 ```
 
-## Schnellstart (Zielzustand)
+## Entwicklung
+
+Voraussetzungen: JDK 25, Node.js 22+, Docker.
 
 ```bash
-docker compose up --build
-# Frontend: http://localhost:4200
-# Backend:  http://localhost:8080
-```
-
-Entwicklung:
-
-```bash
-# Datenbank
+# Datenbank (PostgreSQL 17, Zugang schiffe/schiffe, überschreibbar per .env)
 docker compose up -d db
 
-# Backend
+# Backend: http://localhost:8080 (Health: /q/health)
 cd backend && ./mvnw quarkus:dev
 
-# Frontend
+# Frontend: http://localhost:4200 (leitet /api an das Backend weiter)
 cd frontend && npm install && npm start
 ```
 
-Tests:
+## Tests
 
 ```bash
-cd backend && ./mvnw verify          # Unit- und Integrationstests
-cd frontend && npm test              # Unit-Tests
-cd frontend && npx playwright test   # E2E-Tests (gegen Docker-Compose-Stack)
+cd backend && ./mvnw verify               # Unit- und Integrationstests (Docker nötig, Dev Services/Testcontainers)
+cd frontend && npm test -- --watch=false  # Unit-Tests (Vitest)
 ```
 
-> Hinweis: Das Projekt befindet sich in der Konzeptphase, die Befehle gelten für den Zielzustand.
+Zielzustand (ab Phase 7):
+
+```bash
+docker compose up --build            # Gesamter Stack, Frontend: http://localhost:4200
+cd frontend && npx playwright test   # E2E-Tests gegen den Docker-Compose-Stack
+```
 
 ## Dokumentation
 

@@ -7,11 +7,12 @@ Legende: `[ ]` offen · `[x]` erledigt · *(optional)* = Nice-to-have
 - [x] README.md, Architektur.md und todo.md erstellt
 
 ## Phase 1: Projektgerüst
-- [ ] Verzeichnisstruktur `backend/`, `frontend/`, `docs/` anlegen
-- [ ] Quarkus-Projekt mit Maven erzeugen (REST, Hibernate Panache, Flyway, PostgreSQL, SSE)
-- [ ] Angular-Projekt erzeugen (Standalone, Router)
-- [ ] `docker-compose.yml` mit PostgreSQL
-- [ ] `.gitignore` ergänzen (`target/`, `node_modules/`, `.idea/` …)
+- [x] Verzeichnisstruktur `backend/`, `frontend/`, `docs/` anlegen
+- [x] Quarkus-Projekt mit Maven erzeugen (REST, Hibernate Panache, Flyway, PostgreSQL, SSE)
+- [x] Angular-Projekt erzeugen (Standalone, Router)
+- [x] `docker-compose.yml` mit PostgreSQL
+- [x] `.gitignore` ergänzen (`target/`, `node_modules/`, `.idea/` …), IDE-Dateien aus dem Repository entfernt
+- [x] Smoke-Test `HealthTest` (App + DB bereit) außerhalb der Sandbox mit Docker ausführen
 
 ## Phase 2: Domäne (Backend)
 - [ ] `RuleSet` mit Standardwerten (10x10, 5/4/3/3/2)

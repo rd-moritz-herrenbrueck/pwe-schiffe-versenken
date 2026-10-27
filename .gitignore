@@ -1,0 +1,22 @@
+# Build-Artefakte
+target/
+dist/
+out-tsc/
+.angular/
+
+# Abhängigkeiten
+node_modules/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# Lokale Umgebung
+.env
+
+# System
+.DS_Store
+Thumbs.db
