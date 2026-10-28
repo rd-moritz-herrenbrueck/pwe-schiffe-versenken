@@ -71,7 +71,8 @@ class RuleSetTest {
                 Arguments.of("knapp ohne Berührung: vier Zweier auf 4x4", 4, 4, List.of(2, 2, 2, 2), false),
                 Arguments.of("Feld komplett gefüllt mit Berührung: zwei Zweier auf 2x2", 2, 2, List.of(2, 2), true),
                 Arguments.of("Feld komplett gefüllt mit Berührung", 5, 5, List.of(5, 5, 5, 5, 5), true),
-                Arguments.of("Maximalfeld knapp ohne Berührung", 25, 25, Collections.nCopies(13, 25), false));
+                Arguments.of("Maximalfeld knapp ohne Berührung", 25, 25, Collections.nCopies(13, 25), false),
+                Arguments.of("viele kleine Schiffe dicht ohne Berührung", 12, 12, Collections.nCopies(27, 2), false));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -102,5 +103,15 @@ class RuleSetTest {
                 () -> new RuleSet(width, height, fleet, false, shipsMayTouch));
 
         assertEquals(Violation.FLEET_DOES_NOT_FIT, exception.violation());
+    }
+
+    @Test
+    @Timeout(2)
+    void extremelyDenseFleetIsDecidedInBoundedTime() {
+        try {
+            new RuleSet(24, 24, Collections.nCopies(74, 3), false, false);
+        } catch (RuleViolationException exception) {
+            assertEquals(Violation.FLEET_DOES_NOT_FIT, exception.violation());
+        }
     }
 }

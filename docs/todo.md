@@ -16,14 +16,14 @@ Legende: `[ ]` offen · `[x]` erledigt · *(optional)* = Nice-to-have
 
 ## Phase 2: Domäne (Backend)
 - [x] Domänentests vorab geschrieben (TDD, rot) und API-Skelette angelegt
-- [ ] Abnahme der Domänentests
-- [ ] `RuleSet` mit Standardwerten (10x10, 5/4/3/2), Feld max. 25x25, frei konfigurierbare Schiffslängen (≥ 2)
-- [ ] Plausibilitätsprüfung: Flotte muss platzierbar sein (abhängig von `shipsMayTouch`)
-- [ ] `Board`, `Ship`, Koordinaten, Schussergebnisse
-- [ ] Flottenplatzierung inkl. Validierung
-- [ ] Schusslogik (Miss/Hit/Sunk/Win), Rundenwechsel
-- [ ] Spielphasen und Zustandsübergänge
-- [ ] Parametrisierte Unit-Tests (JUnit 5), auch für Regelvarianten
+- [x] Abnahme der Domänentests
+- [x] `RuleSet` mit Standardwerten (10x10, 5/4/3/2), Feld max. 25x25, frei konfigurierbare Schiffslängen (≥ 2)
+- [x] Plausibilitätsprüfung: Flotte muss platzierbar sein (abhängig von `shipsMayTouch`)
+- [x] `Board`, `Ship`, Koordinaten, Schussergebnisse
+- [x] Flottenplatzierung inkl. Validierung
+- [x] Schusslogik (Miss/Hit/Sunk/Win), Rundenwechsel
+- [x] Spielphasen und Zustandsübergänge
+- [x] Parametrisierte Unit-Tests (JUnit 5), auch für Regelvarianten
 
 ## Phase 3: Persistenz und REST
 - [ ] Flyway-Migration: `player`, `game`, `chat_message`

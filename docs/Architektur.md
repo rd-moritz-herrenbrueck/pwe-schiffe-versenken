@@ -52,10 +52,21 @@ Die `domain`-Schicht enthält die Regeln und ist ohne Quarkus und DB testbar.
   - Feldgröße höchstens 25x25.
   - Flotte frei konfigurierbar: Anzahl und Länge der Schiffe (Länge ≥ 2). Schiffe sind gerade (Breite 1), keine breiten oder gewinkelten Schiffe.
   - Plausibilitätsprüfung: Ein `RuleSet` ist nur gültig, wenn es mindestens eine regelkonforme Platzierung der gesamten Flotte gibt (abhängig von `shipsMayTouch`). Eine reine Flächenabschätzung genügt nicht (Beispiel: 4x4 mit drei Dreiern ohne Berührung ist unmöglich).
+  - Umsetzung (`FleetPlacementSearch`): Die Prüfung wird als Rechteck-Packung gelöst. Mit Berührung belegt ein Schiff der Länge L ein L×1-Rechteck im W×H-Feld, ohne Berührung ein (L+1)×2-Rechteck im (W+1)×(H+1)-Feld (jedes Schiffsfeld um eins nach rechts und unten erweitert; die Rechtecke überschneiden sich genau dann nicht, wenn sich die Schiffe nicht berühren). Gesucht wird per Tiefensuche über das erste freie Feld mit Schranken für den unvermeidbaren Verschnitt (nicht mehr abdeckbare Felder, freie Zeilen-/Spaltenabschnitte).
+  - Die Suche hat ein festes Schrittbudget (deterministisch, im ungünstigsten Fall etwa eine Sekunde Rechenzeit). Wird es überschritten, gilt die Flotte als nicht platzierbar. Das betrifft nur extrem dichte Flotten (Stichprobe: Füllgrad der erweiterten Fläche ab ca. 86 %, unter 0,3 % zufälliger Flotten); erlaubt sind nur Flotten, für die tatsächlich eine Platzierung gefunden wurde.
 - **Board**: Raster, platzierte `Ship`s, empfangene Schüsse.
 - **Ship**: Startkoordinate, Länge, Ausrichtung, Trefferzustand.
 - **Game**: Spieler A/B, jeweils ein `Board`, `phase` (`WAITING`, `PLACEMENT`, `RUNNING`, `FINISHED`, `ABANDONED`), `currentTurn`, `winner`.
 - **Shot-Ergebnis**: `MISS`, `HIT`, `SUNK` (mit Schiff), `WIN`.
+- Regelverstöße werden als `RuleViolationException` mit Grund (`Violation`) abgelehnt, der Zustand bleibt dabei unverändert.
+
+Festlegungen der Domäne:
+- Koordinaten sind 0-basiert, `x` ist die Spalte, `y` die Zeile. Ein Schiff liegt ab seiner Startkoordinate nach rechts (`HORIZONTAL`) bzw. nach unten (`VERTICAL`).
+- Ohne `shipsMayTouch` gilt auch diagonale Nachbarschaft als Berühren.
+- Die Flotte wird in einem Schritt gesetzt und damit bestätigt; die Reihenfolge der Schiffe ist egal.
+- Sind beide Flotten gesetzt, beginnt Spieler A (`RUNNING`).
+- Ein Fehlschuss gibt den Zug immer ab. Treffer und Versenken geben den Zug nur ab, wenn `shootAgainOnHit` aus ist.
+- Aufgeben ist in `PLACEMENT` und `RUNNING` möglich, der Gegner gewinnt. Verwaisen (`ABANDONED`) ist in jeder nicht beendeten Phase möglich.
 
 Validierungen (alle serverseitig):
 - `RuleSet` gültig (Feldgröße 1–25, Schiffslängen ≥ 2, Flotte platzierbar).
