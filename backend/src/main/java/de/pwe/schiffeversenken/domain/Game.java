@@ -26,6 +26,22 @@ public final class Game {
         return new Game(Objects.requireNonNull(rules, "rules"));
     }
 
+    /**
+     * Stellt ein Spiel aus einem gespeicherten Zustand wieder her. Die Flotten werden erneut validiert und die
+     * Schüsse in ihrer Reihenfolge nachgespielt.
+     *
+     * @throws IllegalArgumentException wenn Phase, Zug, Sieger und Flotten nicht zueinander passen
+     * @throws RuleViolationException   wenn eine gespeicherte Flotte oder ein Schuss gegen die Regeln verstößt
+     */
+    public static Game restore(GameSnapshot snapshot) {
+        throw new UnsupportedOperationException("Phase 3: noch nicht implementiert");
+    }
+
+    /** Aktueller Zustand zum Speichern. Spätere Züge verändern den Snapshot nicht. */
+    public GameSnapshot snapshot() {
+        throw new UnsupportedOperationException("Phase 3: noch nicht implementiert");
+    }
+
     /** Spieler B tritt bei: {@link GamePhase#WAITING} → {@link GamePhase#PLACEMENT}. */
     public void join() {
         requirePhase(GamePhase.WAITING);

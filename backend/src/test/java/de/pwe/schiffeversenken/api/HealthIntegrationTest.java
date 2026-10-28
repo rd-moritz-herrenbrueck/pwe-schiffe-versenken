@@ -7,7 +7,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.is;
 
 @QuarkusTest
-class HealthTest {
+class HealthIntegrationTest {
 
     @Test
     void applicationIsReadyWithDatabaseConnection() {

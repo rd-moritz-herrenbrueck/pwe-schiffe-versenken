@@ -89,6 +89,9 @@ Gegen die KI startet die Lobby sofort. Die KI platziert ihre Flotte selbst und a
 - Der Client speichert das Token im `localStorage` und sendet es als `Authorization: Bearer <token>`.
 - Das Token ist der einzige „Login“: Wer es hat, kann seine Spiele fortsetzen. Es gibt keine Passwörter oder Konten.
 - Einschränkung: Wird das `localStorage` gelöscht, ist der Zugriff verloren. Das ist bewusst so akzeptiert.
+- Token: 256 Bit aus `SecureRandom`, Base64url ohne Padding. In `player.token_hash` steht nur der SHA-256-Hash (Hex). Ein schneller Hash genügt, weil das Token zufällig und lang ist (kein Passwort).
+- Nickname: Leerzeichen am Rand werden entfernt, danach 1–20 Zeichen.
+- `POST /api/players` ist der einzige Endpunkt ohne Token. Alle anderen antworten ohne gültiges Token mit `401`.
 
 ### 3.5 Sicherheit und Fairness
 
@@ -113,6 +116,20 @@ Gegen die KI startet die Lobby sofort. Die KI platziert ihre Flotte selbst und a
 | GET/POST | `/api/games/{id}/chat` | Chatverlauf lesen / Nachricht senden |
 | GET | `/api/games/{id}/events` | SSE-Stream für das Spiel |
 | GET | `/api/lobbies/events` | SSE-Stream für die Lobby-Liste |
+
+Festlegungen (Phase 3):
+- `POST /api/lobbies` ohne `rules` nutzt die Standardregeln. Lobbys sind vorerst öffentlich; `visibility`, Einladungscode und `vsAi` folgen in Phase 6.
+- `POST /api/lobbies/join` erwartet `{ "gameId": … }`. `GET /api/lobbies` listet alle offenen öffentlichen Lobbys, auch eigene.
+- Spielaktionen antworten mit dem Spielzustand aus Sicht des Spielers (`GameView`), ein Schuss zusätzlich mit `result` und ggf. `sunkShip`.
+- `GameView` enthält eigenes Feld (Schiffe mit `sunk`, empfangene Schüsse) und gegnerisches Feld (eigene Schüsse mit `hit`, nur versenkte Schiffe). Nicht versenkte gegnerische Schiffe bleiben auch nach Spielende verborgen.
+- Fehler kommen als `{ "code", "message" }`. `code` ist eine `Violation` der Domäne oder ein `ErrorCode` des Service.
+
+| Status | Bedeutung | Codes |
+|---|---|---|
+| 400 | Ungültige Eingabe | `INVALID_REQUEST`, `INVALID_NICKNAME`, `INVALID_RULE_SET`, `FLEET_DOES_NOT_FIT`, `SHIP_OUT_OF_BOUNDS`, `SHIPS_OVERLAP`, `SHIPS_TOUCHING`, `FLEET_MISMATCH`, `SHOT_OUT_OF_BOUNDS` |
+| 401 | Kein oder unbekanntes Token | – |
+| 404 | Spiel unbekannt **oder** Spieler nicht beteiligt (Existenz wird nicht preisgegeben) | `GAME_NOT_FOUND` |
+| 409 | Im aktuellen Zustand nicht erlaubt | `WRONG_PHASE`, `NOT_YOUR_TURN`, `CELL_ALREADY_SHOT`, `FLEET_ALREADY_PLACED`, `CANNOT_JOIN_OWN_GAME`, `CONCURRENT_MODIFICATION` |
 
 ### 3.7 Server-Sent Events
 
@@ -149,7 +166,16 @@ Entscheidungen:
 - `game` hat eine `version`-Spalte für optimistisches Locking, damit gleichzeitige Züge nicht kollidieren.
 - Das Token wird nur als Hash gespeichert.
 - Index auf `(visibility, status)` für die Lobby-Liste und auf `invite_code`.
-- Nicht beendete Spiele ohne Aktivität werden nach einer konfigurierbaren Frist als `ABANDONED` markiert (geplanter Job).
+- Nicht beendete Spiele ohne Aktivität werden nach einer konfigurierbaren Frist als `ABANDONED` markiert (geplanter Job). Konfiguration: `game.abandon.inactive-after` (Standard `P7D`), `game.abandon.check-interval` (Standard `1h`, im Testprofil `off`). Aktivität ist `game.updated_at`, das jede Aktion setzt.
+
+Speicherformat (`GameStateMapper`):
+- Die Domäne liefert mit `Game.snapshot()` einen unveränderlichen `GameSnapshot` und stellt mit `Game.restore(…)` das Spiel wieder her. Flotten werden dabei erneut validiert und Schüsse in ihrer Reihenfolge nachgespielt. Der Trefferzustand der Schiffe wird also nicht gespeichert, sondern abgeleitet.
+- `game.rules`: Felder des `RuleSet`, z. B. `{"boardWidth":10,"boardHeight":10,"fleet":[5,4,3,2],"shootAgainOnHit":false,"shipsMayTouch":false}`.
+- `game.state`: `{"boards":{"A":{"ships":[{"start":{"x":0,"y":0},"length":5,"orientation":"HORIZONTAL"},…],"shotsReceived":[{"x":3,"y":3},…]},"B":…}}`. Es enthält nur Seiten mit platzierter Flotte.
+- Phase, Zug und Sieger liegen nicht im JSON, sondern in den Spalten `status`, `current_turn` und `winner` (Seite `A`/`B`), damit Lobby-Liste und „Meine Spiele“ ohne JSON-Auswertung auskommen.
+- Das JSON-Format ist Teil des Schemas: Umbenennungen in `RuleSet`, `ShipPlacement`, `Coordinate` oder `BoardSnapshot` brechen gespeicherte Spiele. Unit-Tests schreiben das Format fest.
+- Hibernate bekommt das JSON als `String` mit `@JdbcTypeCode(SqlTypes.JSON)` und reicht es unverändert an die JSONB-Spalte weiter. So ist die Serialisierung ohne Datenbank testbar.
+- Gleichzeitige Änderungen am selben Spiel scheitern am `version`-Vergleich und werden mit `409 CONCURRENT_MODIFICATION` abgelehnt. Der Client lädt dann neu.
 
 ## 5. Frontend (Angular, TypeScript)
 
@@ -165,10 +191,13 @@ Entscheidungen:
 
 | Ebene | Werkzeug | Umfang |
 |---|---|---|
-| Domäne | JUnit 5 | Platzierung, Schussauswertung, Siegbedingung, `RuleSet`-Varianten, KI-Strategie |
-| Backend-Integration | `@QuarkusTest`, REST Assured, Testcontainers (Postgres) | REST, SSE, Persistenz, Berechtigungen |
+| Domäne | JUnit 5 | Platzierung, Schussauswertung, Siegbedingung, `RuleSet`-Varianten, Speichern/Wiederherstellen (`GameSnapshot`), KI-Strategie |
+| Backend-Unit (ohne DB) | JUnit 5 | Reine Logik außerhalb der Domäne: Speicherformat (`GameStateMapper`), Spielersicht/Anti-Cheat (`GameViewMapper`), Token-Hash |
+| Backend-Integration | `@QuarkusTest`, REST Assured, Testcontainers (Postgres) | REST, SSE, Persistenz (JSONB, Locking), Berechtigungen, verwaiste Spiele |
 | Frontend-Unit | Vitest (Angular-Standard, `ng test`) | Komponenten und Services |
 | E2E | Playwright (`frontend/e2e/`) | Gegen den Docker-Compose-Stack |
+
+Abgrenzung im Backend: Unit-Tests nur dort, wo reine Logik steckt. Services und Ressourcen sind überwiegend Orchestrierung (laden, Domäne aufrufen, speichern). Sie werden ohne Mocks über `@QuarkusTest` gegen eine echte PostgreSQL getestet, weil Mock-Tests dort nur die Implementierung nachbilden würden. Tests mit `@QuarkusTest` heißen `*IntegrationTest`. Ohne Docker laufen nur die übrigen Tests (`./mvnw test -Dtest='!*IntegrationTest'`).
 
 E2E-Szenarien:
 1. Spiel erstellen und beitreten (offen und privat mit Code).
@@ -198,3 +227,4 @@ E2E-Szenarien:
 - Mehrere Backend-Instanzen erfordern einen verteilten Event-Bus (siehe 3.7).
 - Tokenverlust (localStorage gelöscht) bedeutet Verlust des Zugriffs auf laufende Spiele.
 - Regel-Varianten erhöhen die Testmatrix. Die Domänentests sollten daher parametrisiert sein.
+- Beim Laden eines Spiels validiert der `RuleSet`-Konstruktor die Regeln erneut, inklusive Platzierbarkeitsprüfung. Für extrem dichte Flotten kann das bis zu etwa eine Sekunde dauern, und zwar bei jeder Aktion und für jede solche Lobby in der Lobby-Liste. Falls das stört: Regeln beim Laden ohne Suche rekonstruieren (sie waren beim Anlegen gültig) oder die Lobby-Liste ohne Domänenobjekte bauen.

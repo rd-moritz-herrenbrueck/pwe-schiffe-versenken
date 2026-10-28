@@ -66,7 +66,8 @@ cd frontend && npm install && npm start
 ## Tests
 
 ```bash
-cd backend && ./mvnw verify               # Unit- und Integrationstests (Docker nötig, Dev Services/Testcontainers)
+cd backend && ./mvnw verify                          # Unit- und Integrationstests (Docker nötig, Dev Services/Testcontainers)
+cd backend && ./mvnw test -Dtest='!*IntegrationTest'  # Nur Unit-Tests (ohne Docker)
 cd frontend && npm test -- --watch=false  # Unit-Tests (Vitest)
 ```
 

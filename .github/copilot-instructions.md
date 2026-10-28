@@ -66,7 +66,8 @@ Regeln dazu:
 
 Copilot entwickelt in einer **Sandbox**. Dort stehen Docker, PostgreSQL und ggf. weitere Infrastruktur **nicht** zur Verfügung. Getestet werden kann jedoch **außerhalb der Sandbox** durch die Entwickler:innen.
 
-- In der Sandbox nur ausführen, was ohne Infrastruktur läuft: Kompilieren (`./mvnw package -DskipTests`), Domänen-Unit-Tests (JUnit ohne `@QuarkusTest`), Frontend-Unit-Tests (`npm test`) und Frontend-Build.
+- In der Sandbox nur ausführen, was ohne Infrastruktur läuft: Kompilieren (`./mvnw package -DskipTests`), Backend-Unit-Tests (JUnit ohne `@QuarkusTest`), Frontend-Unit-Tests (`npm test`) und Frontend-Build.
+- Backend-Tests mit `@QuarkusTest` heißen `*IntegrationTest`. Nur so lassen sie sich in der Sandbox per Dateiname ausschließen, denn Quarkus baut die Anwendung samt Dev Services schon beim Laden der Testklasse (ein JUnit-`@Tag` reicht dafür nicht).
 - Keine Infrastruktur (z. B. PostgreSQL) lokal in der Sandbox installieren. Die Datenbank kommt ausschließlich aus `docker-compose.yml` bzw. Quarkus Dev Services (Testcontainers).
 - Tests, die Docker benötigen (`@QuarkusTest` mit Dev Services/Testcontainers, `docker compose`, Playwright gegen den Stack), trotzdem testgetrieben schreiben. Sie werden außerhalb der Sandbox ausgeführt.
 - Am Ende jeder Aufgabe explizit nennen, welche Tests in der Sandbox gelaufen sind und welche außerhalb ausgeführt werden müssen, inklusive der konkreten Befehle.
@@ -75,7 +76,7 @@ Copilot entwickelt in einer **Sandbox**. Dort stehen Docker, PostgreSQL und ggf.
 
 ```bash
 cd backend && ./mvnw verify                                       # Unit- und Integrationstests (Docker nötig)
-cd backend && ./mvnw test -Dtest='de.pwe.schiffeversenken.domain.**'  # Nur Domänentests (ohne Docker, Sandbox)
+cd backend && ./mvnw test -Dtest='!*IntegrationTest'             # Nur Unit-Tests (ohne Docker, Sandbox)
 cd frontend && npm test -- --watch=false                         # Unit-Tests (Vitest)
 cd frontend && npx playwright test                               # E2E-Tests (ab Phase 7)
 ```

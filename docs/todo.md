@@ -26,6 +26,10 @@ Legende: `[ ]` offen · `[x]` erledigt · *(optional)* = Nice-to-have
 - [x] Parametrisierte Unit-Tests (JUnit 5), auch für Regelvarianten
 
 ## Phase 3: Persistenz und REST
+- [x] Abwägung: Unit-Tests nur für reine Logik (Snapshot/Restore, Speicherformat, Spielersicht, Token-Hash), DB und REST über `@QuarkusTest`
+- [x] Tests vorab geschrieben (TDD, rot) und API-Skelette angelegt
+- [ ] Abnahme der Tests
+- [ ] `Game.snapshot()`/`Game.restore(…)` (Spielzustand speichern und wiederherstellen)
 - [ ] Flyway-Migration: `player`, `game`, `chat_message`
 - [ ] Panache-Entities und Repositories, JSONB-Mapping für Regeln und Zustand
 - [ ] Optimistisches Locking (`version`)
