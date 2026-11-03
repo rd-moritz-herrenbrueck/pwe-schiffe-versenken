@@ -9,7 +9,6 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
-import java.util.Map;
 import java.util.UUID;
 
 import static de.pwe.schiffeversenken.api.TestApi.as;
@@ -58,7 +57,7 @@ class LobbyExpiryIntegrationTest {
     @Test
     void expiredPrivateLobbyIsDeletedAndItsCodeStopsWorking() {
         String token = newPlayer("Ada");
-        var created = createPrivateLobby(token, Map.of()).statusCode(201).extract();
+        var created = createPrivateLobby(token, ONE_SHIP_RULES).statusCode(201).extract();
         String gameId = created.path("id");
         String code = created.path("inviteCode");
         makeOld(gameId);
@@ -114,7 +113,7 @@ class LobbyExpiryIntegrationTest {
 
     @Test
     void deletedPrivateLobbyIsNotAnnouncedOnTheLobbyStream() {
-        String gameId = createPrivateLobby(newPlayer("Ada"), Map.of()).statusCode(201).extract().path("id");
+        String gameId = createPrivateLobby(newPlayer("Ada"), ONE_SHIP_RULES).statusCode(201).extract().path("id");
         makeOld(gameId);
 
         try (SseTestClient stream = SseTestClient.open("/api/lobbies/events", newPlayer("Cara"))) {

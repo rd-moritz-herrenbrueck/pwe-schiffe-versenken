@@ -4,7 +4,6 @@ import de.pwe.schiffeversenken.api.SseTestClient.Event;
 import io.quarkus.test.junit.QuarkusTest;
 import org.junit.jupiter.api.Test;
 
-import java.util.Map;
 
 import static de.pwe.schiffeversenken.api.TestApi.ONE_SHIP_RULES;
 import static de.pwe.schiffeversenken.api.TestApi.as;
@@ -42,7 +41,7 @@ class LobbyDeletionIntegrationTest {
     @Test
     void creatorCanDeleteHisPrivateLobbyAndTheCodeStopsWorking() {
         String token = newPlayer("Ada");
-        var created = createPrivateLobby(token, Map.of()).statusCode(201).extract();
+        var created = createPrivateLobby(token, ONE_SHIP_RULES).statusCode(201).extract();
         String gameId = created.path("id");
         String code = created.path("inviteCode");
 
