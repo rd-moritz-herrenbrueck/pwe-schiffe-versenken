@@ -8,9 +8,9 @@ export interface CellPosition {
 
 type CellState = 'empty' | 'ship' | 'hit' | 'miss' | 'sunk';
 
-/** Vorschau eines Schiffs beim Platzieren: passt (`valid`), passt nicht (`invalid`) oder berührt ein anderes Schiff. */
+/** Vorschau eines Schiffs beim Platzieren: passt (`valid`) oder passt nicht (`invalid`). */
 export interface PreviewCell extends CellPosition {
-  state: 'valid' | 'invalid' | 'touching';
+  state: 'valid' | 'invalid';
 }
 
 interface Cell {

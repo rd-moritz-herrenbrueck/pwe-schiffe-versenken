@@ -14,6 +14,9 @@ import java.util.Set;
  */
 public final class Board {
 
+    /** Nachbarn über eine Kante. Ohne {@code shipsMayTouch} gilt nur das als Berühren, Ecken nicht. */
+    private static final int[][] EDGE_DIRECTIONS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+
     private final RuleSet rules;
     private final List<Ship> ships;
     private final Set<Coordinate> shotsReceived = new LinkedHashSet<>();
@@ -114,13 +117,11 @@ public final class Board {
 
         if (!rules.shipsMayTouch()) {
             occupiedBy.forEach((cell, ship) -> {
-                for (int dx = -1; dx <= 1; dx++) {
-                    for (int dy = -1; dy <= 1; dy++) {
-                        Integer neighbour = occupiedBy.get(new Coordinate(cell.x() + dx, cell.y() + dy));
-                        if (neighbour != null && !neighbour.equals(ship)) {
-                            throw new RuleViolationException(Violation.SHIPS_TOUCHING,
-                                    "Schiffe berühren sich bei " + cell);
-                        }
+                for (int[] direction : EDGE_DIRECTIONS) {
+                    Integer neighbour = occupiedBy.get(new Coordinate(cell.x() + direction[0], cell.y() + direction[1]));
+                    if (neighbour != null && !neighbour.equals(ship)) {
+                        throw new RuleViolationException(Violation.SHIPS_TOUCHING,
+                                "Schiffe berühren sich bei " + cell);
                     }
                 }
             });

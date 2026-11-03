@@ -101,6 +101,15 @@ class HuntTargetStrategyTest {
         }
     }
 
+    @Test
+    void fleetThatFitsOnlyWithCornerContactIsStillPlaced() {
+        RuleSet rules = new RuleSet(5, 5, List.of(5, 4, 3, 2), false, false);
+
+        for (long seed = 0; seed < SEEDS; seed++) {
+            Board.withFleet(rules, strategy(seed).placeFleet(rules));
+        }
+    }
+
     // --- Schießen: Hunt ---
 
     @ParameterizedTest(name = "{0}")
@@ -263,22 +272,26 @@ class HuntTargetStrategyTest {
     }
 
     @Test
-    void afterSinkingAShipItsSurroundingIsSkippedWhenShipsMayNotTouch() {
+    void afterSinkingAShipItsEdgeNeighboursAreSkippedWhenShipsMayNotTouch() {
         RuleSet rules = RuleSet.standard();
         ShipPlacement destroyer = new ShipPlacement(new Coordinate(4, 4), 2, Orientation.HORIZONTAL);
         List<ShotOutcome> history = List.of(hit(4, 4), sunk(5, 4, destroyer));
-        Set<Coordinate> surrounding = new HashSet<>();
-        for (int x = 3; x <= 6; x++) {
-            for (int y = 3; y <= 5; y++) {
-                surrounding.add(new Coordinate(x, y));
-            }
-        }
+        Set<Coordinate> edgeNeighbours = Set.of(
+                new Coordinate(3, 4), new Coordinate(6, 4),
+                new Coordinate(4, 3), new Coordinate(5, 3),
+                new Coordinate(4, 5), new Coordinate(5, 5));
+        Set<Coordinate> corners = Set.of(
+                new Coordinate(3, 3), new Coordinate(6, 3),
+                new Coordinate(3, 5), new Coordinate(6, 5));
 
-        for (long seed = 0; seed < 100; seed++) {
+        Set<Coordinate> shots = new HashSet<>();
+        for (long seed = 0; seed < 500; seed++) {
             Coordinate next = strategy(seed).nextShot(rules, history);
 
-            assertTrue(!surrounding.contains(next), "Seed " + seed + ": " + next + " grenzt an ein versenktes Schiff");
+            assertTrue(!edgeNeighbours.contains(next), "Seed " + seed + ": " + next + " grenzt an ein versenktes Schiff");
+            shots.add(next);
         }
+        assertTrue(shots.stream().anyMatch(corners::contains), "Felder über Eck dürfen Schiffe enthalten");
     }
 
     @Test

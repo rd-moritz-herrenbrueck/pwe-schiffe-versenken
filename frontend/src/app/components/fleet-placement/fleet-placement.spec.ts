@@ -218,8 +218,37 @@ describe('FleetPlacement', () => {
       expect(state(5, 0)).toBe('empty');
     });
 
-    it('leavesTouchingRuleToServer', async () => {
+    it('rejectsShipTouchingAnotherShipAtAnEdgeWhenTouchingIsForbidden', async () => {
       await render(rules({ shipsMayTouch: false }));
+      await clickCell(0, 0);
+
+      await clickCell(0, 1);
+
+      expect(shipEntry(1).getAttribute('data-placed')).toBe('false');
+      expect(state(0, 1)).toBe('empty');
+    });
+
+    it('rejectsShipTouchingAnotherShipAtTheEndWhenTouchingIsForbidden', async () => {
+      await render(rules({ shipsMayTouch: false }));
+      await clickCell(0, 0);
+
+      await click('rotate-button');
+      await clickCell(5, 0);
+
+      expect(shipEntry(1).getAttribute('data-placed')).toBe('false');
+    });
+
+    it('allowsShipsTouchingOnlyAtACornerWhenTouchingIsForbidden', async () => {
+      await render(rules({ shipsMayTouch: false }));
+      await clickCell(0, 0);
+
+      await clickCell(5, 1);
+
+      expect(shipEntry(1).getAttribute('data-placed')).toBe('true');
+    });
+
+    it('allowsShipsToTouchWhenTheRuleAllowsIt', async () => {
+      await render(rules({ shipsMayTouch: true }));
       await clickCell(0, 0);
 
       await clickCell(0, 1);
@@ -297,6 +326,16 @@ describe('FleetPlacement', () => {
       expect([0, 4].map((x) => state(x, 5))).toEqual(['ship', 'ship']);
     });
 
+    it('rejectsDropOfAShipTouchingAnotherShipWhenTouchingIsForbidden', async () => {
+      await render(rules({ shipsMayTouch: false }));
+      await clickCell(0, 0);
+
+      cell(0, 1).dispatchEvent(dragEvent('drop'));
+      await fixture.whenStable();
+
+      expect(shipEntry(1).getAttribute('data-placed')).toBe('false');
+    });
+
     it('rejectsDropOutsideTheBoard', async () => {
       await render();
 
@@ -321,14 +360,6 @@ describe('FleetPlacement', () => {
       cell(x, y).dispatchEvent(new Event('mouseenter'));
       await fixture.whenStable();
     }
-
-    it('explainsTheTouchingWarningOnlyWhenTheRuleForbidsTouching', async () => {
-      await render(rules({ shipsMayTouch: false }));
-      expect(byId('placement-legend')!.textContent).toContain('berührt');
-
-      await render(rules({ shipsMayTouch: true }));
-      expect(byId('placement-legend')!.textContent).not.toContain('berührt');
-    });
 
     it('showsNoPreviewWithoutHover', async () => {
       await render();
@@ -386,27 +417,27 @@ describe('FleetPlacement', () => {
       expect(previewOf(2, 2)).toBe('invalid');
     });
 
-    it('warnsWhenShipsWouldTouchButTheRuleForbidsIt', async () => {
+    it('marksPlacementTouchingAShipInvalidWhenTheRuleForbidsIt', async () => {
       await render(rules({ shipsMayTouch: false }));
       await clickCell(0, 0);
 
       await hover(0, 1);
-      expect(previewOf(0, 1)).toBe('touching');
+      expect(previewOf(0, 1)).toBe('invalid');
 
       await hover(0, 2);
       expect(previewOf(0, 2)).toBe('valid');
     });
 
-    it('countsDiagonalContactAsTouching', async () => {
+    it('doesNotCountCornerContactAsTouching', async () => {
       await render(rules({ shipsMayTouch: false }));
       await clickCell(0, 0);
 
       await hover(5, 1);
 
-      expect(previewOf(5, 1)).toBe('touching');
+      expect(previewOf(5, 1)).toBe('valid');
     });
 
-    it('doesNotWarnWhenShipsMayTouch', async () => {
+    it('keepsPreviewValidWhenShipsMayTouch', async () => {
       await render(rules({ shipsMayTouch: true }));
       await clickCell(0, 0);
 

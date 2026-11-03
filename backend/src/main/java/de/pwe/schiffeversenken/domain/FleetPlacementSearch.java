@@ -9,9 +9,9 @@ import java.util.TreeMap;
  * Prüft, ob sich eine Flotte regelkonform auf einem Feld platzieren lässt.
  *
  * <p>Die Prüfung wird als Rechteck-Packung gelöst: Mit Berührung belegt ein Schiff der Länge L ein L×1-Rechteck im
- * W×H-Feld. Ohne Berührung wird jedes Schiff um eins nach rechts und unten zu einem (L+1)×2-Rechteck im
- * (W+1)×(H+1)-Feld erweitert. Diese Rechtecke überschneiden sich genau dann nicht, wenn sich die Schiffe nicht
- * berühren, die Umformung ist also exakt.
+ * W×H-Feld. Mit Rand wird jedes Schiff um eins nach rechts und unten zu einem (L+1)×2-Rechteck im
+ * (W+1)×(H+1)-Feld erweitert. Diese Rechtecke überschneiden sich genau dann nicht, wenn sich die Schiffe auch nicht
+ * über Eck berühren, die Umformung ist also exakt für diese strengere Regel.
  *
  * <p>Gesucht wird per Tiefensuche über das jeweils erste freie Feld (zeilenweise): Entweder beginnt dort ein
  * Rechteck, oder das Feld bleibt leer (Verschnitt). Ein Zweig wird verworfen, sobald der bisherige Verschnitt plus
@@ -55,8 +55,18 @@ final class FleetPlacementSearch {
         }
     }
 
+    /**
+     * Ohne Berührung wird zuerst die Rechteck-Packung versucht, die auch Ecken als Berührung zählt: Jede dort
+     * gefundene Platzierung ist auch ohne Kantenberührung gültig. Erst wenn sie scheitert, sucht
+     * {@link EdgeSeparatedFleetSearch}, die Schiffe über Eck zulässt.
+     */
     static boolean fits(int width, int height, List<Integer> fleet, boolean shipsMayTouch) {
-        int margin = shipsMayTouch ? 0 : 1;
+        return shipsMayTouch
+                ? fitsAsRectangles(width, height, fleet, 0)
+                : fitsAsRectangles(width, height, fleet, 1) || EdgeSeparatedFleetSearch.fits(width, height, fleet);
+    }
+
+    private static boolean fitsAsRectangles(int width, int height, List<Integer> fleet, int margin) {
         int columns = width + margin;
         int rows = height + margin;
         int shortSide = 1 + margin;

@@ -76,7 +76,13 @@ class BoardPlacementTest {
         return Stream.of(
                 Arguments.of("parallel nebeneinander", List.of(horizontal(0, 0, 2), horizontal(0, 1, 2))),
                 Arguments.of("Ende an Ende", List.of(horizontal(0, 0, 2), horizontal(2, 0, 2))),
-                Arguments.of("diagonal", List.of(horizontal(0, 0, 2), vertical(2, 1, 2))));
+                Arguments.of("Ende an Seite", List.of(horizontal(0, 0, 2), vertical(2, 0, 2))));
+    }
+
+    static Stream<Arguments> cornerPlacements() {
+        return Stream.of(
+                Arguments.of("waagerecht und senkrecht über Eck", List.of(horizontal(0, 0, 2), vertical(2, 1, 2))),
+                Arguments.of("Treppe aus zwei waagerechten", List.of(horizontal(0, 0, 2), horizontal(2, 1, 2))));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -88,6 +94,20 @@ class BoardPlacementTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("touchingPlacements")
     void touchingShipsAreAcceptedWhenAllowed(String description, List<ShipPlacement> placements) {
+        assertDoesNotThrow(() -> Board.withFleet(TWO_SHIPS_MAY_TOUCH, placements));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("cornerPlacements")
+    void shipsTouchingOnlyAtACornerAreAcceptedEvenWhenTouchingIsNotAllowed(String description,
+                                                                           List<ShipPlacement> placements) {
+        assertDoesNotThrow(() -> Board.withFleet(TWO_SHIPS_NO_TOUCH, placements));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("cornerPlacements")
+    void shipsTouchingOnlyAtACornerAreAcceptedWhenTouchingIsAllowed(String description,
+                                                                    List<ShipPlacement> placements) {
         assertDoesNotThrow(() -> Board.withFleet(TWO_SHIPS_MAY_TOUCH, placements));
     }
 

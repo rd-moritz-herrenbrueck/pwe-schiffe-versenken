@@ -168,7 +168,7 @@ describe('GamePage', () => {
         placementView({ rules: rules({ boardWidth: 6, boardHeight: 4, fleet: [2, 3] }) }),
       );
       await click(cellIn('own-board', 0, 0));
-      await click(cellIn('own-board', 0, 1));
+      await click(cellIn('own-board', 0, 2));
       await click(byId('confirm-fleet-button'));
 
       http

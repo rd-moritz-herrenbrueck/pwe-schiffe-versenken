@@ -10,8 +10,8 @@ import java.util.random.RandomGenerator;
 /**
  * Hunt/Target: Ohne offenen Treffer wird zufällig gesucht (Hunt), nach einem Treffer werden die Nachbarfelder
  * verfolgt, bis das Schiff versenkt ist (Target). Zwei Treffer in einer Reihe verlängern die Linie. Ohne
- * {@code shipsMayTouch} werden Felder rund um versenkte Schiffe nicht beschossen. Der Zufall ist injizierbar, damit
- * Tests deterministisch sind.
+ * {@code shipsMayTouch} werden Felder neben versenkten Schiffen nicht beschossen (über Eck ist erlaubt). Der Zufall
+ * ist injizierbar, damit Tests deterministisch sind.
  */
 public final class HuntTargetStrategy implements AiStrategy {
 
@@ -71,8 +71,8 @@ public final class HuntTargetStrategy implements AiStrategy {
                 for (Coordinate b : other.cells()) {
                     int dx = Math.abs(a.x() - b.x());
                     int dy = Math.abs(a.y() - b.y());
-                    boolean touching = dx <= 1 && dy <= 1;
-                    if (touching && (!rules.shipsMayTouch() || (dx == 0 && dy == 0))) {
+                    boolean sharesEdge = dx + dy <= 1;
+                    if (sharesEdge && (!rules.shipsMayTouch() || (dx == 0 && dy == 0))) {
                         return false;
                     }
                 }
@@ -99,10 +99,9 @@ public final class HuntTargetStrategy implements AiStrategy {
             shot.add(outcome.target());
             outcome.sunkShip().ifPresent(ship -> ship.cells().forEach(cell -> {
                 sunkCells.add(cell);
-                for (int dx = -1; dx <= 1; dx++) {
-                    for (int dy = -1; dy <= 1; dy++) {
-                        aroundSunk.add(new Coordinate(cell.x() + dx, cell.y() + dy));
-                    }
+                aroundSunk.add(cell);
+                for (int[] direction : DIRECTIONS) {
+                    aroundSunk.add(new Coordinate(cell.x() + direction[0], cell.y() + direction[1]));
                 }
             }));
         }

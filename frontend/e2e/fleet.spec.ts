@@ -60,10 +60,14 @@ test.describe('Flotte platzieren', () => {
     await board.getByTestId('cell-8-3').hover();
     await expect(board.getByTestId('cell-9-3')).toHaveAttribute('data-preview', 'invalid');
 
-    // Das Schiff ist gesetzt, ein zweites direkt daneben berührt es und wird gewarnt.
+    // Das Schiff ist gesetzt: Direkt daneben geht nicht, über Eck schon.
     await board.getByTestId('cell-0-0').click();
     await board.getByTestId('cell-0-1').hover();
-    await expect(board.getByTestId('cell-0-1')).toHaveAttribute('data-preview', 'touching');
+    await expect(board.getByTestId('cell-0-1')).toHaveAttribute('data-preview', 'invalid');
+    await board.getByTestId('cell-0-1').click();
+    await expect(page.getByTestId('fleet-ship-1')).toHaveAttribute('data-placed', 'false');
+    await board.getByTestId('cell-5-1').hover();
+    await expect(board.getByTestId('cell-5-1')).toHaveAttribute('data-preview', 'valid');
 
     await page.mouse.move(0, 0);
     await expect(page.locator('[data-preview]')).toHaveCount(0);

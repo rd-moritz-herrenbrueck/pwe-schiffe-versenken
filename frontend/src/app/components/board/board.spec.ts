@@ -242,16 +242,11 @@ describe('Board', () => {
         preview: [
           { x: 0, y: 0, state: 'valid' },
           { x: 1, y: 0, state: 'invalid' },
-          { x: 2, y: 0, state: 'touching' },
         ],
       });
 
-      expect([previewOf(0, 0), previewOf(1, 0), previewOf(2, 0)]).toEqual([
-        'valid',
-        'invalid',
-        'touching',
-      ]);
-      expect(cell(3, 0)?.hasAttribute('data-preview')).toBe(false);
+      expect([previewOf(0, 0), previewOf(1, 0)]).toEqual(['valid', 'invalid']);
+      expect(cell(2, 0)?.hasAttribute('data-preview')).toBe(false);
     });
 
     it('showsNoPreviewByDefault', async () => {

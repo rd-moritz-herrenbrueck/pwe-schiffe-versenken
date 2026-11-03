@@ -10,7 +10,8 @@ function cellsOf(ship: ShipPlacement): CellPosition[] {
 }
 
 /**
- * Flotte per Klick platzieren. Geprüft werden nur Feldgrenzen und Überlappung, die Berührungsregel prüft der Server.
+ * Flotte per Klick platzieren. Ein Schiff, das nicht passt (außerhalb des Felds, Überlappung oder, falls verboten,
+ * Berührung über eine Kante), lässt sich nicht setzen. Ecken zählen nicht als Berührung. Der Server prüft erneut.
  */
 @Component({
   selector: 'app-fleet-placement',
@@ -63,9 +64,6 @@ function cellsOf(ship: ShipPlacement): CellPosition[] {
     </p>
     <ul class="legend" aria-label="Legende der Vorschau" data-testid="placement-legend">
       <li class="valid">passt</li>
-      @if (!rules().shipsMayTouch) {
-        <li class="touching">berührt ein anderes Schiff (nicht erlaubt)</li>
-      }
       <li class="invalid">geht nicht</li>
     </ul>
 
@@ -125,12 +123,8 @@ export class FleetPlacement {
       length: this.rules().fleet[index],
       orientation: this.orientation(),
     };
-    const { boardWidth, boardHeight, shipsMayTouch } = this.rules();
-    const state = !this.fits(ship)
-      ? 'invalid'
-      : !shipsMayTouch && this.touchesPlacedShip(ship)
-        ? 'touching'
-        : 'valid';
+    const { boardWidth, boardHeight } = this.rules();
+    const state = this.fits(ship) ? 'valid' : 'invalid';
     return cellsOf(ship)
       .filter((c) => c.x < boardWidth && c.y < boardHeight)
       .map((c) => ({ ...c, state }));
@@ -199,22 +193,25 @@ export class FleetPlacement {
   }
 
   private fits(ship: ShipPlacement): boolean {
-    const { boardWidth, boardHeight } = this.rules();
+    const { boardWidth, boardHeight, shipsMayTouch } = this.rules();
     const cells = cellsOf(ship);
-    const inside = cells.every((c) => c.x < boardWidth && c.y < boardHeight);
+    if (!cells.every((c) => c.x < boardWidth && c.y < boardHeight)) {
+      return false;
+    }
     const occupied = new Set(
       this.placedShips().flatMap((placed) => cellsOf(placed).map((c) => `${c.x},${c.y}`)),
     );
-    return inside && cells.every((c) => !occupied.has(`${c.x},${c.y}`));
-  }
-
-  /** Berührung zählt auch diagonal. */
-  private touchesPlacedShip(ship: ShipPlacement): boolean {
-    const own = cellsOf(ship);
-    return this.placedShips().some((placed) =>
-      cellsOf(placed).some((c) =>
-        own.some((o) => Math.abs(o.x - c.x) <= 1 && Math.abs(o.y - c.y) <= 1),
-      ),
+    const isOccupied = (x: number, y: number) => occupied.has(`${x},${y}`);
+    return cells.every(
+      (c) =>
+        !isOccupied(c.x, c.y) &&
+        (shipsMayTouch ||
+          !(
+            isOccupied(c.x + 1, c.y) ||
+            isOccupied(c.x - 1, c.y) ||
+            isOccupied(c.x, c.y + 1) ||
+            isOccupied(c.x, c.y - 1)
+          )),
     );
   }
 

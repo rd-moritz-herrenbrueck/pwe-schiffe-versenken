@@ -71,6 +71,8 @@ class RuleSetTest {
                 Arguments.of("knapp ohne Berührung: vier Zweier auf 4x4", 4, 4, List.of(2, 2, 2, 2), false),
                 Arguments.of("Feld komplett gefüllt mit Berührung: zwei Zweier auf 2x2", 2, 2, List.of(2, 2), true),
                 Arguments.of("Feld komplett gefüllt mit Berührung", 5, 5, List.of(5, 5, 5, 5, 5), true),
+                Arguments.of("nur über Eck platzierbar: 3, 3, 2 auf 4x4", 4, 4, List.of(3, 3, 2), false),
+                Arguments.of("nur über Eck platzierbar: Standardflotte auf 5x5", 5, 5, List.of(5, 4, 3, 2), false),
                 Arguments.of("Maximalfeld knapp ohne Berührung", 25, 25, Collections.nCopies(13, 25), false),
                 Arguments.of("viele kleine Schiffe dicht ohne Berührung", 12, 12, Collections.nCopies(27, 2), false));
     }

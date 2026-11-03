@@ -87,11 +87,6 @@
     --preview-symbol: '';
   }
 
-  &[data-preview='touching'] {
-    --preview-color: var(--p-orange-500);
-    --preview-symbol: '!';
-  }
-
   &[data-preview='invalid'] {
     --preview-color: var(--p-red-500);
     --preview-symbol: '✕';
