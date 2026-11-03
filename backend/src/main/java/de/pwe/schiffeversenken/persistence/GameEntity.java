@@ -12,8 +12,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import org.hibernate.annotations.ColumnTransformer;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -40,12 +39,13 @@ public class GameEntity {
     @Column(name = "invite_code")
     public String inviteCode;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(nullable = false)
+    // @JdbcTypeCode(SqlTypes.JSON) würde den String als JSON-String kodieren; daher Cast beim Schreiben.
+    @ColumnTransformer(write = "?::jsonb")
+    @Column(nullable = false, columnDefinition = "jsonb")
     public String rules;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(nullable = false)
+    @ColumnTransformer(write = "?::jsonb")
+    @Column(nullable = false, columnDefinition = "jsonb")
     public String state;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

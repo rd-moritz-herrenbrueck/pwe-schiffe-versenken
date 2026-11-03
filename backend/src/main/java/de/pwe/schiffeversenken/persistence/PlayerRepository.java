@@ -10,6 +10,6 @@ import java.util.UUID;
 public class PlayerRepository implements PanacheRepositoryBase<PlayerEntity, UUID> {
 
     public Optional<PlayerEntity> findByTokenHash(String tokenHash) {
-        throw new UnsupportedOperationException("Phase 3: noch nicht implementiert");
+        return find("tokenHash", tokenHash).firstResultOptional();
     }
 }

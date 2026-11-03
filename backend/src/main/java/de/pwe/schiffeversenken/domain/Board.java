@@ -36,6 +36,22 @@ public final class Board {
     }
 
     /**
+     * Stellt ein Board aus einem gespeicherten Zustand wieder her: Die Flotte wird erneut validiert, die Schüsse
+     * werden in ihrer Reihenfolge nachgespielt.
+     *
+     * @throws RuleViolationException wenn Flotte oder Schüsse nicht zum {@link RuleSet} passen
+     */
+    static Board restore(RuleSet rules, BoardSnapshot snapshot) {
+        Board board = withFleet(rules, snapshot.ships());
+        snapshot.shotsReceived().forEach(board::receiveShot);
+        return board;
+    }
+
+    BoardSnapshot snapshot() {
+        return new BoardSnapshot(ships.stream().map(Ship::placement).toList(), List.copyOf(shotsReceived));
+    }
+
+    /**
      * Wertet einen Schuss auf dieses Board aus.
      *
      * @throws RuleViolationException bei Schüssen außerhalb des Felds oder auf bereits beschossene Felder

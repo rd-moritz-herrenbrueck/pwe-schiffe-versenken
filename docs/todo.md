@@ -28,17 +28,18 @@ Legende: `[ ]` offen · `[x]` erledigt · *(optional)* = Nice-to-have
 ## Phase 3: Persistenz und REST
 - [x] Abwägung: Unit-Tests nur für reine Logik (Snapshot/Restore, Speicherformat, Spielersicht, Token-Hash), DB und REST über `@QuarkusTest`
 - [x] Tests vorab geschrieben (TDD, rot) und API-Skelette angelegt
-- [ ] Abnahme der Tests
-- [ ] `Game.snapshot()`/`Game.restore(…)` (Spielzustand speichern und wiederherstellen)
-- [ ] Flyway-Migration: `player`, `game`, `chat_message`
-- [ ] Panache-Entities und Repositories, JSONB-Mapping für Regeln und Zustand
-- [ ] Optimistisches Locking (`version`)
-- [ ] Spieler anlegen und Token-Authentifizierung (Hash in der DB)
-- [ ] Lobby: erstellen, auflisten, beitreten
-- [ ] Spiel: Zustand abrufen (ohne gegnerische Schiffe), Flotte setzen, schießen, aufgeben
-- [ ] Liste eigener Spiele, Fortsetzen
-- [ ] Integrationstests (`@QuarkusTest`, Testcontainers, REST Assured)
-- [ ] Job für verwaiste Spiele (`ABANDONED`)
+- [x] Abnahme der Tests
+- [x] `Game.snapshot()`/`Game.restore(…)` (Spielzustand speichern und wiederherstellen)
+- [x] Flyway-Migration: `player`, `game`, `chat_message`
+- [x] Panache-Entities und Repositories, JSONB-Mapping für Regeln und Zustand
+- [x] Optimistisches Locking (`version`)
+- [x] Spieler anlegen und Token-Authentifizierung (Hash in der DB)
+- [x] Lobby: erstellen, auflisten, beitreten
+- [x] Spiel: Zustand abrufen (ohne gegnerische Schiffe), Flotte setzen, schießen, aufgeben
+- [x] Liste eigener Spiele, Fortsetzen
+- [x] Integrationstests (`@QuarkusTest`, Testcontainers, REST Assured) geschrieben
+- [x] Job für verwaiste Spiele (`ABANDONED`)
+- [ ] Integrationstests außerhalb der Sandbox mit Docker ausführen (`cd backend && ./mvnw verify`)
 
 ## Phase 4: Echtzeit (SSE)
 - [ ] Event-Bus (In-Memory) und Spiel-Events

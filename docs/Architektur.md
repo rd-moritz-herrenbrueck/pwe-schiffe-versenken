@@ -174,7 +174,7 @@ Speicherformat (`GameStateMapper`):
 - `game.state`: `{"boards":{"A":{"ships":[{"start":{"x":0,"y":0},"length":5,"orientation":"HORIZONTAL"},…],"shotsReceived":[{"x":3,"y":3},…]},"B":…}}`. Es enthält nur Seiten mit platzierter Flotte.
 - Phase, Zug und Sieger liegen nicht im JSON, sondern in den Spalten `status`, `current_turn` und `winner` (Seite `A`/`B`), damit Lobby-Liste und „Meine Spiele“ ohne JSON-Auswertung auskommen.
 - Das JSON-Format ist Teil des Schemas: Umbenennungen in `RuleSet`, `ShipPlacement`, `Coordinate` oder `BoardSnapshot` brechen gespeicherte Spiele. Unit-Tests schreiben das Format fest.
-- Hibernate bekommt das JSON als `String` mit `@JdbcTypeCode(SqlTypes.JSON)` und reicht es unverändert an die JSONB-Spalte weiter. So ist die Serialisierung ohne Datenbank testbar.
+- Hibernate bekommt das JSON als `String` und schreibt es mit `@ColumnTransformer(write = "?::jsonb")` unverändert in die JSONB-Spalte. `@JdbcTypeCode(SqlTypes.JSON)` taugt dafür nicht: Hibernate würde den String als JSON-*String* kodieren (`"{\"a\":1}"`) statt als Objekt. So bleibt die Serialisierung ohne Datenbank testbar.
 - Gleichzeitige Änderungen am selben Spiel scheitern am `version`-Vergleich und werden mit `409 CONCURRENT_MODIFICATION` abgelehnt. Der Client lädt dann neu.
 
 ## 5. Frontend (Angular, TypeScript)
