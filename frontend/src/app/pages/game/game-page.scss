@@ -4,8 +4,19 @@
   margin: 1rem auto;
 }
 
+@media (max-width: 40rem) {
+  :host {
+    margin: 0.5rem auto;
+  }
+
+  .header {
+    padding: 0.75rem 0.75rem 0;
+  }
+}
+
 .header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
@@ -19,13 +30,14 @@
 
 .resign-confirm {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
 }
 
 .boards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
   gap: 1.5rem;
   margin-top: 1rem;
 

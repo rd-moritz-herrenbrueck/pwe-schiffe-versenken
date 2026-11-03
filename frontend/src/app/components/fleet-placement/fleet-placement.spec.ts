@@ -308,6 +308,180 @@ describe('FleetPlacement', () => {
     });
   });
 
+  describe('preview', () => {
+    const previewOf = (x: number, y: number) => cell(x, y).getAttribute('data-preview');
+    const previewCells = () =>
+      Array.from(root().querySelectorAll('[data-preview]')).map((c) => [
+        c.getAttribute('data-testid'),
+        c.getAttribute('data-preview'),
+      ]);
+    const dragEvent = (type: string) => new Event(type, { bubbles: true, cancelable: true });
+
+    async function hover(x: number, y: number): Promise<void> {
+      cell(x, y).dispatchEvent(new Event('mouseenter'));
+      await fixture.whenStable();
+    }
+
+    it('explainsTheTouchingWarningOnlyWhenTheRuleForbidsTouching', async () => {
+      await render(rules({ shipsMayTouch: false }));
+      expect(byId('placement-legend')!.textContent).toContain('berührt');
+
+      await render(rules({ shipsMayTouch: true }));
+      expect(byId('placement-legend')!.textContent).not.toContain('berührt');
+    });
+
+    it('showsNoPreviewWithoutHover', async () => {
+      await render();
+
+      expect(previewCells()).toEqual([]);
+    });
+
+    it('showsWhereTheSelectedShipWouldLie', async () => {
+      await render();
+
+      await hover(2, 3);
+
+      expect(previewCells()).toEqual([2, 3, 4, 5, 6].map((x) => [`cell-${x}-3`, 'valid']));
+    });
+
+    it('followsTheOrientation', async () => {
+      await render();
+      await click('rotate-button');
+
+      await hover(2, 3);
+
+      expect(previewCells()).toEqual([3, 4, 5, 6, 7].map((y) => [`cell-2-${y}`, 'valid']));
+    });
+
+    it('usesTheLengthOfTheSelectedShip', async () => {
+      await render();
+      await click('fleet-ship-3');
+
+      await hover(0, 0);
+
+      expect(previewCells()).toEqual([
+        ['cell-0-0', 'valid'],
+        ['cell-1-0', 'valid'],
+      ]);
+    });
+
+    it('marksTheVisiblePartInvalidWhenTheShipLeavesTheBoard', async () => {
+      await render();
+
+      await hover(8, 0);
+
+      expect(previewCells()).toEqual([
+        ['cell-8-0', 'invalid'],
+        ['cell-9-0', 'invalid'],
+      ]);
+    });
+
+    it('marksOverlapWithAPlacedShipInvalid', async () => {
+      await render();
+      await clickCell(3, 2);
+
+      await hover(0, 2);
+
+      expect(previewOf(0, 2)).toBe('invalid');
+      expect(previewOf(2, 2)).toBe('invalid');
+    });
+
+    it('warnsWhenShipsWouldTouchButTheRuleForbidsIt', async () => {
+      await render(rules({ shipsMayTouch: false }));
+      await clickCell(0, 0);
+
+      await hover(0, 1);
+      expect(previewOf(0, 1)).toBe('touching');
+
+      await hover(0, 2);
+      expect(previewOf(0, 2)).toBe('valid');
+    });
+
+    it('countsDiagonalContactAsTouching', async () => {
+      await render(rules({ shipsMayTouch: false }));
+      await clickCell(0, 0);
+
+      await hover(5, 1);
+
+      expect(previewOf(5, 1)).toBe('touching');
+    });
+
+    it('doesNotWarnWhenShipsMayTouch', async () => {
+      await render(rules({ shipsMayTouch: true }));
+      await clickCell(0, 0);
+
+      await hover(0, 1);
+
+      expect(previewOf(0, 1)).toBe('valid');
+    });
+
+    it('showsNoPreviewOnceAllShipsArePlaced', async () => {
+      await render();
+      await placeWholeDefaultFleet();
+
+      await hover(0, 8);
+
+      expect(previewCells()).toEqual([]);
+    });
+
+    it('disappearsWhenThePointerLeavesTheBoard', async () => {
+      await render();
+      await hover(2, 3);
+
+      byId('own-board')!.querySelector('.grid')!.dispatchEvent(new Event('mouseleave'));
+      await fixture.whenStable();
+
+      expect(previewCells()).toEqual([]);
+    });
+
+    it('showsThePreviewWhileDraggingAShipFromTheList', async () => {
+      await render();
+
+      shipEntry(2).dispatchEvent(dragEvent('dragstart'));
+      cell(4, 4).dispatchEvent(dragEvent('dragenter'));
+      await fixture.whenStable();
+
+      expect(previewCells()).toEqual([
+        ['cell-4-4', 'valid'],
+        ['cell-5-4', 'valid'],
+        ['cell-6-4', 'valid'],
+      ]);
+    });
+
+    it('showsThePreviewWhileDraggingAPlacedShip', async () => {
+      await render();
+      await clickCell(0, 0);
+
+      cell(1, 0).dispatchEvent(dragEvent('dragstart'));
+      cell(0, 5).dispatchEvent(dragEvent('dragenter'));
+      await fixture.whenStable();
+
+      expect(previewCells().map(([id]) => id)).toEqual([0, 1, 2, 3, 4].map((x) => `cell-${x}-5`));
+    });
+
+    it('disappearsAfterDropping', async () => {
+      await render();
+      shipEntry(2).dispatchEvent(dragEvent('dragstart'));
+      cell(4, 4).dispatchEvent(dragEvent('dragenter'));
+
+      cell(4, 4).dispatchEvent(dragEvent('drop'));
+      await fixture.whenStable();
+
+      expect(previewCells()).toEqual([]);
+    });
+
+    it('disappearsWhenDraggingIsCancelled', async () => {
+      await render();
+      shipEntry(2).dispatchEvent(dragEvent('dragstart'));
+      cell(4, 4).dispatchEvent(dragEvent('dragenter'));
+
+      shipEntry(2).dispatchEvent(dragEvent('dragend'));
+      await fixture.whenStable();
+
+      expect(previewCells()).toEqual([]);
+    });
+  });
+
   describe('confirm', () => {
     it('enablesConfirmWhenAllShipsArePlaced', async () => {
       await render();

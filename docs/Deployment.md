@@ -7,6 +7,7 @@ Ziel ist ein IONOS-VPS (Linux, Docker installiert). Dort belegt bereits Supabase
 ```
 PR / Push auf main ──► ci.yml ──► Backend: ./mvnw verify (inkl. Testcontainers)
                                   Frontend: npm ci, npm test, npm run build
+                                  E2E: Docker-Compose-Stack mit Testprofil, Playwright-Tests
 
 Tag v* ──► deploy.yml ──► ci.yml (wiederverwendet)
                       ──► Images backend/frontend bauen, nach GHCR pushen (:vX.Y.Z, :latest)
@@ -30,7 +31,7 @@ Postgres und Backend sind nur im Compose-Netz erreichbar. Nach außen öffnet de
 
 | Datei | Zweck |
 |---|---|
-| `.github/workflows/ci.yml` | Build und Tests bei PR und Push auf `main`, als Reusable Workflow auch für das Deployment |
+| `.github/workflows/ci.yml` | Build, Tests und E2E-Tests bei PR und Push auf `main`, als Reusable Workflow auch für das Deployment (ein Release-Tag wird erst nach grünen E2E-Tests ausgerollt) |
 | `.github/workflows/deploy.yml` | Images bauen/pushen und ausrollen bei Tag `v*`, Rollback per `workflow_dispatch` |
 | `backend/Dockerfile` | Multi-Stage: Maven-Build (JDK 25), Laufzeit im JRE-25-Image |
 | `frontend/Dockerfile`, `frontend/nginx.conf` | Angular-Build, Auslieferung mit nginx, `/api` an das Backend (SSE ohne Buffering) |

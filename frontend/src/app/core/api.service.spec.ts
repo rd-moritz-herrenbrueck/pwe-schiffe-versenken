@@ -64,6 +64,14 @@ describe('ApiService', () => {
     request.flush(gameView());
   });
 
+  it('deletesLobbyWithDelete', () => {
+    api.deleteLobby(GAME_ID).subscribe();
+
+    const request = http.expectOne(`/api/lobbies/${GAME_ID}`);
+    expect(request.request.method).toBe('DELETE');
+    request.flush(null, { status: 204, statusText: 'No Content' });
+  });
+
   it('listsOwnGames', () => {
     api.listGames().subscribe();
 

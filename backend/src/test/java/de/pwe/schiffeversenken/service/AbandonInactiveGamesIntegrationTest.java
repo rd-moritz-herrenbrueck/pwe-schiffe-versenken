@@ -17,9 +17,7 @@ import static de.pwe.schiffeversenken.api.TestApi.createLobby;
 import static de.pwe.schiffeversenken.api.TestApi.getGame;
 import static de.pwe.schiffeversenken.api.TestApi.newPlayer;
 import static de.pwe.schiffeversenken.api.TestApi.runningStandardGame;
-import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -53,15 +51,14 @@ class AbandonInactiveGamesIntegrationTest {
     }
 
     @Test
-    void inactiveLobbyIsAbandonedAndNoLongerListed() {
+    void inactiveLobbyIsLeftToTheLobbyExpiry() {
         String token = newPlayer("Ada");
         String gameId = createLobby(token);
         makeInactive(gameId);
 
         gameService.abandonInactiveGames();
 
-        getGame(token, gameId).body("phase", is("ABANDONED"));
-        as(token).when().get("/api/lobbies").then().body("id", not(hasItem(gameId)));
+        getGame(token, gameId).body("phase", is("WAITING"));
     }
 
     @Test
@@ -98,20 +95,6 @@ class AbandonInactiveGamesIntegrationTest {
             assertEquals("GAME_FINISHED", event.name());
             assertEquals("ABANDONED", event.json().getString("phase"));
             assertNull(event.json().get("winner"));
-        }
-    }
-
-    @Test
-    void abandonedLobbyIsRemovedFromTheLobbyStream() {
-        String gameId = createLobby(newPlayer("Ada"));
-        makeInactive(gameId);
-
-        try (SseTestClient stream = SseTestClient.open("/api/lobbies/events", newPlayer("Cara"))) {
-            gameService.abandonInactiveGames();
-
-            Event event = stream.next();
-            assertEquals("LOBBY_CLOSED", event.name());
-            assertEquals(gameId, event.json().getString("gameId"));
         }
     }
 

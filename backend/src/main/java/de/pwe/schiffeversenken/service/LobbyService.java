@@ -1,8 +1,11 @@
 package de.pwe.schiffeversenken.service;
 
 import de.pwe.schiffeversenken.domain.Game;
+import de.pwe.schiffeversenken.domain.GamePhase;
 import de.pwe.schiffeversenken.domain.PlayerSide;
 import de.pwe.schiffeversenken.domain.RuleSet;
+import de.pwe.schiffeversenken.domain.RuleViolationException;
+import de.pwe.schiffeversenken.domain.Violation;
 import de.pwe.schiffeversenken.persistence.GameEntity;
 import de.pwe.schiffeversenken.persistence.GameRepository;
 import de.pwe.schiffeversenken.persistence.GameStateMapper;
@@ -12,9 +15,11 @@ import de.pwe.schiffeversenken.persistence.Visibility;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -49,6 +54,9 @@ public class LobbyService {
 
     @Inject
     AiOpponent ai;
+
+    @ConfigProperty(name = "game.lobby.expire-after")
+    Duration expireAfter;
 
     /** Erstellt eine öffentliche Lobby. Der Ersteller ist Spieler A. */
     @Transactional
@@ -132,6 +140,44 @@ public class LobbyService {
         String normalized = inviteCode == null ? "" : inviteCode.strip().toUpperCase(Locale.ROOT);
         GameEntity entity = games.findByInviteCode(normalized).orElseThrow(GameAccess::notFound);
         return join(playerId, entity);
+    }
+
+    /**
+     * Löscht eine Lobby, in der noch kein Gegner ist. Nur der Ersteller darf das, für andere gilt die Lobby als
+     * unbekannt.
+     *
+     * @throws ServiceException {@link ErrorCode#GAME_NOT_FOUND}
+     * @throws RuleViolationException {@link Violation#WRONG_PHASE}, wenn das Spiel schon begonnen hat (auch gegen die
+     *                                KI, dort bleibt nur das Aufgeben)
+     */
+    @Transactional
+    public void delete(UUID playerId, UUID gameId) {
+        GameEntity entity = access.loadAsParticipant(playerId, gameId);
+        if (entity.status != GamePhase.WAITING) {
+            throw new RuleViolationException(Violation.WRONG_PHASE,
+                    "Nur Lobbys ohne Gegner lassen sich löschen, laufende Spiele nur aufgeben");
+        }
+        remove(entity);
+    }
+
+    /**
+     * Löscht Lobbys, die seit {@code game.lobby.expire-after} auf einen Gegner warten.
+     *
+     * @return Anzahl der gelöschten Lobbys
+     */
+    @Transactional
+    public int deleteExpiredLobbies() {
+        List<GameEntity> expired = games.listWaitingCreatedBefore(clock.instant().minus(expireAfter));
+        expired.forEach(this::remove);
+        return expired.size();
+    }
+
+    private void remove(GameEntity entity) {
+        games.delete(entity);
+        // Private Lobbys stehen nicht in der öffentlichen Liste und werden dort auch nicht gemeldet.
+        if (entity.visibility == Visibility.PUBLIC) {
+            events.publishLobbyClosed(entity.id);
+        }
     }
 
     private PlayerGame join(UUID playerId, GameEntity entity) {

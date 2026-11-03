@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ShipView, ShotView } from '../../core/models';
-import { Board, CellPosition } from './board';
+import { Board, CellPosition, PreviewCell } from './board';
 
 describe('Board', () => {
   let fixture: ComponentFixture<Board>;
@@ -16,6 +16,7 @@ describe('Board', () => {
     ships?: ShipView[];
     shots?: ShotView[];
     interactive?: boolean;
+    preview?: PreviewCell[];
   }): Promise<void> {
     for (const [name, value] of Object.entries(inputs)) {
       fixture.componentRef.setInput(name, value);
@@ -229,5 +230,114 @@ describe('Board', () => {
     await render({ width: 10, height: 10 });
 
     expect(cell(3, 7)!.getAttribute('aria-label')).toMatch(/Spalte 4.*Zeile 8/);
+  });
+
+  describe('preview', () => {
+    const previewOf = (x: number, y: number) => cell(x, y)?.getAttribute('data-preview');
+
+    it('marksPreviewCellsWithTheirState', async () => {
+      await render({
+        width: 5,
+        height: 5,
+        preview: [
+          { x: 0, y: 0, state: 'valid' },
+          { x: 1, y: 0, state: 'invalid' },
+          { x: 2, y: 0, state: 'touching' },
+        ],
+      });
+
+      expect([previewOf(0, 0), previewOf(1, 0), previewOf(2, 0)]).toEqual([
+        'valid',
+        'invalid',
+        'touching',
+      ]);
+      expect(cell(3, 0)?.hasAttribute('data-preview')).toBe(false);
+    });
+
+    it('showsNoPreviewByDefault', async () => {
+      await render({ width: 3, height: 3 });
+
+      expect(root().querySelectorAll('[data-preview]')).toHaveLength(0);
+    });
+
+    it('keepsTheCellStateUnderThePreview', async () => {
+      await render({
+        width: 5,
+        height: 5,
+        ships: [ship()],
+        preview: [{ x: 0, y: 0, state: 'invalid' }],
+      });
+
+      expect(state(0, 0)).toBe('ship');
+    });
+  });
+
+  describe('hovering', () => {
+    let hovered: CellPosition[];
+    let hoverEnds: number;
+
+    beforeEach(() => {
+      hovered = [];
+      hoverEnds = 0;
+      fixture.componentInstance.cellHovered.subscribe((c) => hovered.push(c));
+      fixture.componentInstance.hoverEnded.subscribe(() => hoverEnds++);
+    });
+
+    const dragEvent = (type: string) => new Event(type, { bubbles: true, cancelable: true });
+
+    it('reportsTheCellUnderTheMouseWhenInteractive', async () => {
+      await render({ width: 5, height: 5, interactive: true });
+
+      cell(2, 3)!.dispatchEvent(new Event('mouseenter'));
+
+      expect(hovered).toEqual([{ x: 2, y: 3 }]);
+    });
+
+    it('reportsTheCellUnderADraggedShip', async () => {
+      await render({ width: 5, height: 5, interactive: true });
+
+      cell(4, 1)!.dispatchEvent(dragEvent('dragenter'));
+      cell(0, 2)!.dispatchEvent(dragEvent('dragover'));
+
+      expect(hovered).toEqual([
+        { x: 4, y: 1 },
+        { x: 0, y: 2 },
+      ]);
+    });
+
+    it('reportsNothingWhenNotInteractive', async () => {
+      await render({ width: 5, height: 5, interactive: false });
+
+      cell(2, 3)!.dispatchEvent(new Event('mouseenter'));
+      cell(2, 3)!.dispatchEvent(dragEvent('dragenter'));
+
+      expect(hovered).toEqual([]);
+    });
+
+    it('reportsWhenThePointerLeavesTheBoard', async () => {
+      await render({ width: 5, height: 5, interactive: true });
+
+      root().querySelector('.grid')!.dispatchEvent(new Event('mouseleave'));
+
+      expect(hoverEnds).toBe(1);
+    });
+
+    it('ignoresDragLeaveBetweenCellsOfTheBoard', async () => {
+      await render({ width: 5, height: 5, interactive: true });
+      const leave = new MouseEvent('dragleave', { bubbles: true, relatedTarget: cell(1, 0) });
+
+      cell(0, 0)!.dispatchEvent(leave);
+
+      expect(hoverEnds).toBe(0);
+    });
+
+    it('reportsDragLeaveOutOfTheBoard', async () => {
+      await render({ width: 5, height: 5, interactive: true });
+      const leave = new MouseEvent('dragleave', { bubbles: true, relatedTarget: document.body });
+
+      cell(0, 0)!.dispatchEvent(leave);
+
+      expect(hoverEnds).toBe(1);
+    });
   });
 });

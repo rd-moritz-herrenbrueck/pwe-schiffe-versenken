@@ -46,3 +46,42 @@ jobs:
       - run: npm ci
       - run: npm test -- --watch=false
       - run: npm run build
+
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Playwright installieren
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      # Testprofil: leere Datenbank im RAM, fester KI-Seed (docker-compose.e2e.yml). `--wait` kehrt zurück,
+      # sobald alle Dienste gesund sind.
+      - name: Stack starten
+        run: docker compose -p schiffe-e2e -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait
+      - name: E2E-Tests
+        working-directory: frontend
+        run: npx playwright test
+      - name: Bericht und Logs sichern
+        if: failure()
+        run: docker compose -p schiffe-e2e logs --no-color > e2e-stack.log
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-report
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+            e2e-stack.log
+          if-no-files-found: ignore
+      - name: Stack stoppen
+        if: always()
+        run: docker compose -p schiffe-e2e -f docker-compose.yml -f docker-compose.e2e.yml down -v

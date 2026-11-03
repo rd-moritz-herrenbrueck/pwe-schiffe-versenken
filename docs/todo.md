@@ -97,8 +97,8 @@ Legende: `[ ]` offen · `[x]` erledigt · *(optional)* = Nice-to-have
 
 ## Phase 8: Abschluss
 - [x] CI-Pipeline (GitHub Actions): `mvn verify`, Frontend-Tests (vorgezogen in Phase 6)
-- [ ] Playwright-E2E in die CI aufnehmen *(optional)*
-- [ ] README mit realen Start- und Testbefehlen aktualisieren
-- [ ] Feinschliff (Fehlermeldungen, Responsive Design, Rate-Limiting für Chat)
-- [ ] UI Optimierung des Schiffe platzieren: Bessere Visualisierung beim Drag & Drop
-- [ ] Offene Lobbies, die noch nicht gestartet wurden, nach 24h automatisch löschen und manuelles löschen ermöglichen
+- [x] Playwright-E2E in die CI aufnehmen *(optional)*
+- [x] README mit realen Start- und Testbefehlen aktualisieren
+- [x] Feinschliff (Fehlermeldungen, Responsive Design, Rate-Limiting für Chat)
+- [x] UI Optimierung des Schiffe platzieren: Bessere Visualisierung beim Drag & Drop
+- [x] Offene Lobbies, die noch nicht gestartet wurden, nach 24h automatisch löschen und manuelles löschen ermöglichen

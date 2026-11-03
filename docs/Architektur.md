@@ -68,7 +68,7 @@ Festlegungen der Domäne:
 - Die Flotte wird in einem Schritt gesetzt und damit bestätigt; die Reihenfolge der Schiffe ist egal.
 - Sind beide Flotten gesetzt, beginnt Spieler A (`RUNNING`).
 - Ein Fehlschuss gibt den Zug immer ab. Treffer und Versenken geben den Zug nur ab, wenn `shootAgainOnHit` aus ist.
-- Aufgeben ist in `PLACEMENT` und `RUNNING` möglich, der Gegner gewinnt. Verwaisen (`ABANDONED`) ist in jeder nicht beendeten Phase möglich.
+- Aufgeben ist in `PLACEMENT` und `RUNNING` möglich, der Gegner gewinnt. Verwaisen (`ABANDONED`) ist in `PLACEMENT` und `RUNNING` möglich. Eine wartende Lobby (`WAITING`) wird dagegen gelöscht (siehe 3.10).
 
 Validierungen (alle serverseitig):
 - `RuleSet` gültig (Feldgröße 1–25, Schiffslängen ≥ 2, Flotte platzierbar).
@@ -100,7 +100,7 @@ Gegen die KI startet die Lobby sofort. Die KI platziert ihre Flotte selbst und a
 - Gegnerische Schiffspositionen verlassen den Server nie. Der Client erhält nur eigene Schiffe und die Schussergebnisse auf das gegnerische Feld.
 - Alle Regeln werden im Backend geprüft, der Client ist reine Darstellung.
 - Zugriff auf ein Spiel nur für beteiligte Spieler (Zuschauer sind nicht vorgesehen).
-- Rate-Limiting und Längenbegrenzung für Chat und Nicknames.
+- Längenbegrenzung für Chat und Nicknames. Rate-Limiting für den Chat (siehe 3.8, Chat), für Nicknames folgt es nicht gesondert.
 
 ### 3.6 REST-API (Entwurf)
 
@@ -110,6 +110,7 @@ Gegen die KI startet die Lobby sofort. Die KI platziert ihre Flotte selbst und a
 | GET | `/api/lobbies` | Offene Lobbys auflisten |
 | POST | `/api/lobbies` | Lobby/Spiel erstellen (`RuleSet`, `visibility`, `vsAi`) |
 | POST | `/api/lobbies/join` | Beitreten per ID oder Einladungscode |
+| DELETE | `/api/lobbies/{id}` | Eigene Lobby ohne Gegner löschen |
 | GET | `/api/games` | Eigene Spiele (laufende und beendete) |
 | GET | `/api/games/{id}` | Spielzustand aus Sicht des Spielers |
 | PUT | `/api/games/{id}/fleet` | Flotte platzieren/bestätigen |
@@ -146,7 +147,7 @@ Festlegungen (Phase 4):
 - Alle Spieler eines Spiels erhalten dieselben Ereignisse, sie enthalten nie Schiffspositionen (nur das versenkte Schiff bei `SUNK`/`WIN`). Felder: `PLAYER_JOINED` (`nickname`), `FLEET_READY` (`side`), `GAME_STARTED` (`currentTurn`), `SHOT` (`side` = Schütze, `x`, `y`, `result`, ggf. `sunkShip`), `TURN_CHANGED` (`currentTurn`), `GAME_FINISHED` (`phase` = `FINISHED`/`ABANDONED`, `winner`).
 - Reihenfolge je Aktion: Zweite Flotte → `FLEET_READY`, `GAME_STARTED`. Schuss → `SHOT`, dann `GAME_FINISHED` (bei `WIN`) oder `TURN_CHANGED` (wenn der Gegner an der Reihe ist, nicht bei Nochmal-Schießen nach Treffer). Aufgeben und verwaiste Spiele → `GAME_FINISHED`.
 - Ereignisse werden erst nach dem Speichern (Commit) veröffentlicht, abgelehnte Aktionen erzeugen keine. Es gibt keinen Replay und keine `Last-Event-ID`, nach einem Reconnect gilt der Zustand aus `GET`.
-- Lobby-Stream: `LOBBY_OPENED` (mit `lobby` wie in `GET /api/lobbies`) und `LOBBY_CLOSED` (`gameId`, bei Beitritt oder verwaister Lobby).
+- Lobby-Stream: `LOBBY_OPENED` (mit `lobby` wie in `GET /api/lobbies`) und `LOBBY_CLOSED` (`gameId`, bei Beitritt, Löschen oder abgelaufener Lobby).
 - Der Bus blockiert nie bei langsamen Abonnenten (Puffer je Abonnent begrenzt, bei Überlauf endet nur dessen Stream, der Client verbindet neu) und meldet abgebrochene Streams sofort ab. Die Event-Endpunkte sind `@Blocking`, weil sie vor dem Streamen die DB nutzen.
 - Skalierung: Bei mehreren Backend-Instanzen müsste der Event-Bus durch Postgres `LISTEN/NOTIFY` oder einen Broker ersetzt werden. Für das Projekt reicht eine Instanz.
 
@@ -164,6 +165,7 @@ Umgesetzt testgetrieben, die Tests schreiben diese Festlegungen fest.
 Private Lobby:
 - `POST /api/lobbies` akzeptiert `visibility` (`PUBLIC` Standard, `PRIVATE`). Bei `PRIVATE` enthält die Antwort (`GameView.inviteCode`) einen Einladungscode aus 8 Zeichen `A-Z0-9`, eindeutig (Spalte `invite_code`). Nur der Ersteller sieht ihn, der Beitretende nicht.
 - Private Lobbys stehen nicht in `GET /api/lobbies`, erzeugen kein `LOBBY_OPENED` und beim Beitritt kein `LOBBY_CLOSED`. Sie erscheinen in `GET /api/games` des Erstellers.
+- `DELETE /api/lobbies/{id}` löscht eine Lobby ohne Gegner endgültig (`204`). Nur der Ersteller darf das, für andere und unbekannte Spiele gilt `404 GAME_NOT_FOUND`, sobald ein Gegner beigetreten ist (auch die KI) `409 WRONG_PHASE` (dann bleibt nur Aufgeben). Öffentliche Lobbys erzeugen dabei `LOBBY_CLOSED`, private nichts. Gelöscht wird hart (Zeile in `game`), da in `WAITING` noch kein Chat und keine Schüsse existieren. Die Frontend-Seiten `GamePage` (Phase `WAITING`, `delete-lobby-button`) und `MyGamesPage` (`delete-game-{id}`) bieten das Löschen an.
 - `POST /api/lobbies/join` erwartet `gameId` **oder** `inviteCode` (sonst `400 INVALID_REQUEST`). Der Code wird getrimmt und ohne Beachtung der Groß-/Kleinschreibung verglichen. Private Lobbys sind nicht per `gameId` beitretbar und unbekannte Codes liefern `404 GAME_NOT_FOUND` (Existenz wird nicht preisgegeben). Der Ersteller bekommt `409 CANNOT_JOIN_OWN_GAME`, ein bereits benutzter Code `409 WRONG_PHASE`.
 - Ungültige Regeln und unbekannte `visibility` werden mit `400` abgelehnt.
 
@@ -173,7 +175,7 @@ Regelprüfung für das UI:
 Chat:
 - `GET /api/games/{id}/chat` liefert den Verlauf aufsteigend nach Zeit, `POST /api/games/{id}/chat` (`{ "text" }`) speichert eine Nachricht und antwortet mit `201` und `{ id, side, nickname, text, createdAt }`. Beide Aufrufe nur mit Header-Token und nur für Beteiligte (`401`, sonst `404 GAME_NOT_FOUND`).
 - Der Text wird getrimmt und muss 1–500 Zeichen lang sein (`400 INVALID_REQUEST`), er wird unverändert gespeichert, das Escaping übernimmt das Frontend (Interpolation, kein HTML).
-- Senden ist in `PLACEMENT`, `RUNNING` und `FINISHED` möglich, in `WAITING` und `ABANDONED` antwortet der Server mit `409 WRONG_PHASE`. Lesen geht immer. Rate-Limiting folgt in Phase 8.
+- Senden ist in `PLACEMENT`, `RUNNING` und `FINISHED` möglich, in `WAITING` und `ABANDONED` antwortet der Server mit `409 WRONG_PHASE`. Lesen geht immer. Pro Spieler sind höchstens `game.chat.rate-limit.max-messages` (Standard 5) Nachrichten im gleitenden Fenster `game.chat.rate-limit.window` (Standard `10s`) erlaubt, danach `429 RATE_LIMITED` mit Header `Retry-After` (Sekunden). Abgelehnte Nachrichten (ungültig oder begrenzt) zählen nicht mit. Der Zähler liegt im Speicher der Instanz (`ChatRateLimiter`), wie der Event-Bus. Mehrere Instanzen bräuchten einen gemeinsamen Speicher.
 - Jede gespeicherte Nachricht erzeugt im Spiel-Stream ein `CHAT`-Ereignis `{ type, gameId, message }` für beide Spieler (auch den Absender). Abgelehnte Nachrichten erzeugen keines.
 
 KI-Gegner:
@@ -210,7 +212,8 @@ Entscheidungen:
 - `game` hat eine `version`-Spalte für optimistisches Locking, damit gleichzeitige Züge nicht kollidieren.
 - Das Token wird nur als Hash gespeichert.
 - Index auf `(visibility, status)` für die Lobby-Liste und auf `invite_code`.
-- Nicht beendete Spiele ohne Aktivität werden nach einer konfigurierbaren Frist als `ABANDONED` markiert (geplanter Job). Konfiguration: `game.abandon.inactive-after` (Standard `P7D`), `game.abandon.check-interval` (Standard `1h`, im Testprofil `off`). Aktivität ist `game.updated_at`, das jede Aktion setzt.
+- Spiele in `PLACEMENT` oder `RUNNING` ohne Aktivität werden nach einer konfigurierbaren Frist als `ABANDONED` markiert (geplanter Job). Konfiguration: `game.abandon.inactive-after` (Standard `P7D`), `game.abandon.check-interval` (Standard `1h`, im Testprofil `off`). Aktivität ist `game.updated_at`, das jede Aktion setzt.
+- Wartende Lobbys (`WAITING`, öffentlich und privat) werden dagegen **gelöscht**, sobald sie älter als `game.lobby.expire-after` sind (Standard `PT24H`, gemessen ab `created_at`). Ein geplanter Job (`game.lobby.check-interval`, Standard `15m`, im Testprofil `off`) prüft das. Öffentliche Lobbys werden dabei per `LOBBY_CLOSED` aus der Liste genommen. Annahme: Die Frist läuft ab dem Erstellen und nicht ab der letzten Aktivität, da in `WAITING` nichts passiert. Die Lobby-Seite des Erstellers erfährt vom Löschen erst bei der nächsten Anfrage (`404 GAME_NOT_FOUND`).
 
 Speicherformat (`GameStateMapper`):
 - Die Domäne liefert mit `Game.snapshot()` einen unveränderlichen `GameSnapshot` und stellt mit `Game.restore(…)` das Spiel wieder her. Flotten werden dabei erneut validiert und Schüsse in ihrer Reihenfolge nachgespielt. Der Trefferzustand der Schiffe wird also nicht gespeichert, sondern abgeleitet.
@@ -262,7 +265,10 @@ Seiten und Routen (`authGuard` auf allen außer `/`):
 Komponenten:
 - `Board`: Raster aus Schaltflächen `cell-{x}-{y}` mit `data-state` (`empty`, `ship`, `hit`, `miss`, `sunk`; Vorrang `sunk` > `hit` > `miss` > `ship`). Bereits beschossene Felder sind gesperrt, ohne `interactive` ist das ganze Feld gesperrt.
 - `FleetPlacement`: Klick auf ein Feld setzt das gewählte Schiff, Drehen per Button (`rotate-button`) oder Taste `R`. Ein Klick auf ein gesetztes Schiff nimmt es wieder auf. Die Komponente prüft nur Feldgrenzen und Überlappung. Die Berührungsregel prüft allein der Server (Fehler wird angezeigt). Bestätigen erst bei vollständiger Flotte.
+- Vorschau beim Platzieren: Fährt die Maus über ein Feld oder wird ein Schiff darüber gezogen, hebt `Board` (Eingabe `preview`, Attribut `data-preview`) alle Felder des gewählten Schiffs hervor: `valid` (passt), `invalid` (ragt hinaus oder überlappt) und `touching` (berührt ein Schiff, obwohl `shipsMayTouch` aus ist; Warnung, die Entscheidung bleibt beim Server). Die Zustände unterscheiden sich durch Farbe, Rahmen und Symbol, eine Legende erklärt sie. Das Raster meldet dafür `cellHovered` und `hoverEnded`.
 - Drag-and-drop ergänzt den Klick (HTML5-Drag): Schiffe aus der Liste oder von einem gesetzten Schiff auf ein Feld ziehen. Das echte Ziehen im Browser prüfen die E2E-Tests, die Unit-Tests lösen `dragstart`/`dragover`/`drop` direkt aus.
+- Fehlermeldungen: `toApiError` nimmt `code` und `message` des Servers, sonst entscheidet der Statuscode (`401`, `429`, `5xx`, keine Antwort) über einen verständlichen Text. Lehnt der Server das Token mit `401` ab (z. B. nach einem Zurücksetzen der Datenbank), verwirft `authInterceptor` es und leitet auf die Startseite.
+- Responsive: Header und Navigation umbrechen unter 40 rem, Spielfelder sind mindestens 1,25 rem je Feld breit und scrollen bei sehr großen Feldern seitlich, statt die Seite zu verbreitern.
 - Das Bundle liegt mit PrimeNG bei etwa 620 kB (Anfangsgröße), das Warn-Budget in `angular.json` ist deshalb auf 800 kB angehoben.
 
 ## 6. Tests
@@ -285,7 +291,7 @@ E2E-Szenarien:
 5. Chat zwischen zwei Spielern.
 6. Eigene Regeln/Feldgröße.
 
-Umsetzung: `frontend/e2e/*.spec.ts` (`lobby`, `game`, `ai`, `chat`, `fleet`) mit gemeinsamen Hilfsfunktionen in `helpers.ts`. Spieler sind getrennte Browser-Contexts mit eigenem Nickname. Die Tests laufen nacheinander (ein Worker), weil sie sich Datenbank und öffentliche Lobby-Liste teilen, und adressieren Elemente nur über `data-testid`. Zwei Spieler platzieren dieselbe bekannte Flotte (waagerecht in den Zeilen 0/2/4/6), so schießt A gezielt bis zum Sieg und B ins Wasser. Gegen die KI wird nur geprüft, dass sie antwortet und das Aufgeben funktioniert, da ihre Flotte zufällig ist. Szenario 6 (eigene Regeln/Feldgröße) ist noch offen.
+Umsetzung: `frontend/e2e/*.spec.ts` (`lobby`, `game`, `ai`, `chat`, `fleet`, `responsive`) mit gemeinsamen Hilfsfunktionen in `helpers.ts`. Spieler sind getrennte Browser-Contexts mit eigenem Nickname. Die Tests laufen nacheinander (ein Worker), weil sie sich Datenbank und öffentliche Lobby-Liste teilen, und adressieren Elemente nur über `data-testid`. Zwei Spieler platzieren dieselbe bekannte Flotte (waagerecht in den Zeilen 0/2/4/6), so schießt A gezielt bis zum Sieg und B ins Wasser. Gegen die KI wird nur geprüft, dass sie antwortet und das Aufgeben funktioniert, da ihre Flotte zufällig ist. Szenario 6 (eigene Regeln/Feldgröße) ist noch offen. Weitere Szenarien: Lobby löschen, Chat-Rate-Limit, Vorschau und Drag-and-drop beim Platzieren, schmaler Bildschirm ohne seitliches Scrollen. In der CI läuft der Job `e2e` in `ci.yml` mit demselben Testprofil, bei Fehlern werden Playwright-Bericht und Stack-Logs als Artefakt gesichert.
 
 Testprofil: `docker-compose.e2e.yml` ist ein Overlay auf `docker-compose.yml`. Die Datenbank liegt im tmpfs (bei jedem Start leer, kein Port nach außen), das Backend läuft mit `GAME_AI_SEED=42`. Start, Lauf und Aufräumen über die npm-Skripte `e2e:stack:up`, `e2e` und `e2e:stack:down` (Compose-Projekt `schiffe-e2e`). Die Basis-URL ist `http://localhost:8081`, überschreibbar per `E2E_BASE_URL` (z. B. `http://localhost:4200` im Dev-Modus).
 

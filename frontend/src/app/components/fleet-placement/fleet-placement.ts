@@ -1,7 +1,7 @@
 import { Component, HostListener, computed, input, output, signal } from '@angular/core';
 import { ButtonDirective } from 'primeng/button';
 import { Orientation, RuleSet, ShipPlacement, ShipView } from '../../core/models';
-import { Board, CellPosition } from '../board/board';
+import { Board, CellPosition, PreviewCell } from '../board/board';
 
 function cellsOf(ship: ShipPlacement): CellPosition[] {
   return Array.from({ length: ship.length }, (_, i) =>
@@ -33,6 +33,7 @@ function cellsOf(ship: ShipPlacement): CellPosition[] {
           draggable="true"
           (click)="select($index)"
           (dragstart)="select($index)"
+          (dragend)="hovered.set(null)"
         >
           @if (placements()[$index]) {
             <i class="pi pi-check" aria-hidden="true"></i>
@@ -57,12 +58,26 @@ function cellsOf(ship: ShipPlacement): CellPosition[] {
       </button>
     </div>
 
+    <p class="hint">
+      Schiff wählen und aufs Feld klicken oder ziehen. Die Vorschau zeigt vorab, ob es passt.
+    </p>
+    <ul class="legend" aria-label="Legende der Vorschau" data-testid="placement-legend">
+      <li class="valid">passt</li>
+      @if (!rules().shipsMayTouch) {
+        <li class="touching">berührt ein anderes Schiff (nicht erlaubt)</li>
+      }
+      <li class="invalid">geht nicht</li>
+    </ul>
+
     <app-board
       data-testid="own-board"
       [width]="rules().boardWidth"
       [height]="rules().boardHeight"
       [ships]="placedShips()"
+      [preview]="preview()"
       [interactive]="true"
+      (cellHovered)="hovered.set($event)"
+      (hoverEnded)="hovered.set(null)"
       (cellSelected)="clickCell($event)"
       (cellDragStarted)="clickCell($event)"
       (cellDropped)="place($event)"
@@ -87,6 +102,7 @@ export class FleetPlacement {
 
   protected readonly orientation = signal<Orientation>('HORIZONTAL');
   protected readonly selected = signal<number | null>(0);
+  protected readonly hovered = signal<CellPosition | null>(null);
   private readonly overrides = signal<(ShipPlacement | null)[] | null>(null);
 
   protected readonly placements = computed(
@@ -97,6 +113,28 @@ export class FleetPlacement {
       .filter((ship): ship is ShipPlacement => ship !== null)
       .map((ship) => ({ ...ship, sunk: false })),
   );
+  /** Wo das gewählte Schiff läge, wenn man jetzt auf das Feld unter dem Zeiger klickt oder dort loslässt. */
+  protected readonly preview = computed<PreviewCell[]>(() => {
+    const index = this.selected();
+    const cell = this.hovered();
+    if (index === null || cell === null) {
+      return [];
+    }
+    const ship: ShipPlacement = {
+      ...cell,
+      length: this.rules().fleet[index],
+      orientation: this.orientation(),
+    };
+    const { boardWidth, boardHeight, shipsMayTouch } = this.rules();
+    const state = !this.fits(ship)
+      ? 'invalid'
+      : !shipsMayTouch && this.touchesPlacedShip(ship)
+        ? 'touching'
+        : 'valid';
+    return cellsOf(ship)
+      .filter((c) => c.x < boardWidth && c.y < boardHeight)
+      .map((c) => ({ ...c, state }));
+  });
   protected readonly complete = computed(() => this.placements().every((ship) => ship !== null));
 
   @HostListener('document:keydown', ['$event'])
@@ -155,6 +193,7 @@ export class FleetPlacement {
       return;
     }
     this.setPlacement(index, candidate);
+    this.hovered.set(null);
     const next = this.placements().findIndex((ship) => ship === null);
     this.selected.set(next >= 0 ? next : null);
   }
@@ -167,6 +206,16 @@ export class FleetPlacement {
       this.placedShips().flatMap((placed) => cellsOf(placed).map((c) => `${c.x},${c.y}`)),
     );
     return inside && cells.every((c) => !occupied.has(`${c.x},${c.y}`));
+  }
+
+  /** Berührung zählt auch diagonal. */
+  private touchesPlacedShip(ship: ShipPlacement): boolean {
+    const own = cellsOf(ship);
+    return this.placedShips().some((placed) =>
+      cellsOf(placed).some((c) =>
+        own.some((o) => Math.abs(o.x - c.x) <= 1 && Math.abs(o.y - c.y) <= 1),
+      ),
+    );
   }
 
   private setPlacement(index: number, ship: ShipPlacement | null): void {

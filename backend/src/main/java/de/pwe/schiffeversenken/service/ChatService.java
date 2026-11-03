@@ -39,6 +39,9 @@ public class ChatService {
     @Inject
     EventPublisher events;
 
+    @Inject
+    ChatRateLimiter rateLimiter;
+
     /** Verlauf, älteste Nachricht zuerst. Lesen ist in jeder Phase möglich. */
     @Transactional
     public List<ChatEntry> history(UUID playerId, UUID gameId) {
@@ -50,7 +53,8 @@ public class ChatService {
      * Speichert eine Nachricht und meldet sie allen Spielern.
      *
      * @throws ServiceException       {@link ErrorCode#GAME_NOT_FOUND}, {@link ErrorCode#INVALID_REQUEST} bei leerem oder
-     *                                zu langem Text
+     *                                zu langem Text,
+     *                                {@link ErrorCode#RATE_LIMITED} bei zu vielen Nachrichten in kurzer Zeit
      * @throws RuleViolationException {@link Violation#WRONG_PHASE} in {@code WAITING} und {@code ABANDONED}
      */
     @Transactional
@@ -64,6 +68,10 @@ public class ChatService {
         if (trimmed.isEmpty() || trimmed.length() > MAX_TEXT_LENGTH) {
             throw new ServiceException(ErrorCode.INVALID_REQUEST,
                     "Nachricht muss 1 bis " + MAX_TEXT_LENGTH + " Zeichen lang sein");
+        }
+        if (!rateLimiter.tryAcquire(playerId)) {
+            throw new ServiceException(ErrorCode.RATE_LIMITED,
+                    "Du schreibst zu schnell, bitte warte einen Moment", rateLimiter.retryAfterSeconds(playerId));
         }
         ChatMessageEntity message = new ChatMessageEntity();
         message.id = UUID.randomUUID();

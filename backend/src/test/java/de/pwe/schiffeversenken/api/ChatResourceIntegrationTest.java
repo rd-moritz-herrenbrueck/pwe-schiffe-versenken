@@ -185,4 +185,38 @@ class ChatResourceIntegrationTest {
         sendChat(game.tokenB(), game.id(), "gg").statusCode(201);
         readChat(game.tokenA(), game.id()).body("text", contains("gg"));
     }
+
+    @Test
+    void tooManyMessagesInAShortTimeAreRejected() {
+        TestApi.TwoPlayerGame game = placementGame(ONE_SHIP_RULES);
+        for (int i = 1; i <= 5; i++) {
+            sendChat(game.tokenA(), game.id(), "Nachricht " + i).statusCode(201);
+        }
+
+        sendChat(game.tokenA(), game.id(), "Nachricht 6").statusCode(429)
+                .body("code", is("RATE_LIMITED"))
+                .header("Retry-After", notNullValue());
+        readChat(game.tokenA(), game.id()).body("size()", is(5));
+    }
+
+    @Test
+    void rateLimitAppliesPerPlayer() {
+        TestApi.TwoPlayerGame game = placementGame(ONE_SHIP_RULES);
+        for (int i = 1; i <= 5; i++) {
+            sendChat(game.tokenA(), game.id(), "Nachricht " + i).statusCode(201);
+        }
+
+        sendChat(game.tokenA(), game.id(), "zu viel").statusCode(429);
+        sendChat(game.tokenB(), game.id(), "ich darf noch").statusCode(201);
+    }
+
+    @Test
+    void rejectedMessagesDoNotUseUpTheRateLimit() {
+        TestApi.TwoPlayerGame game = placementGame(ONE_SHIP_RULES);
+        for (int i = 0; i < 10; i++) {
+            sendChat(game.tokenA(), game.id(), "   ").statusCode(400);
+        }
+
+        sendChat(game.tokenA(), game.id(), "gültig").statusCode(201);
+    }
 }

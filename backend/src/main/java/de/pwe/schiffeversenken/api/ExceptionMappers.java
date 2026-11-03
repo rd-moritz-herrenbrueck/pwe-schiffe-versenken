@@ -12,7 +12,7 @@ import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
 
 /**
  * Fehler als {@link ErrorResponse}. Ungültige Eingaben → 400, unbekannte bzw. fremde Spiele → 404, Aktionen, die
- * im aktuellen Spielzustand nicht erlaubt sind → 409.
+ * im aktuellen Spielzustand nicht erlaubt sind → 409, zu viele Anfragen → 429 mit {@code Retry-After}.
  */
 public class ExceptionMappers {
 
@@ -32,8 +32,14 @@ public class ExceptionMappers {
             case INVALID_REQUEST, INVALID_NICKNAME -> Status.BAD_REQUEST;
             case GAME_NOT_FOUND -> Status.NOT_FOUND;
             case CANNOT_JOIN_OWN_GAME, CONCURRENT_MODIFICATION -> Status.CONFLICT;
+            case RATE_LIMITED -> Status.TOO_MANY_REQUESTS;
         };
-        return error(status, exception.code().name(), exception.getMessage());
+        Response.ResponseBuilder response = Response.status(status).type(MediaType.APPLICATION_JSON)
+                .entity(new ErrorResponse(exception.code().name(), exception.getMessage()));
+        if (exception.retryAfterSeconds() != null) {
+            response.header("Retry-After", exception.retryAfterSeconds());
+        }
+        return response.build();
     }
 
     @ServerExceptionMapper

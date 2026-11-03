@@ -16,6 +16,10 @@
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 1rem;
+
+  input {
+    flex: 1 1 12rem;
+  }
 }
 
 .lobbies {
@@ -29,6 +33,7 @@
 
 .lobby {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 1rem;
   padding: 0.5rem 0.75rem;
@@ -41,6 +46,6 @@
 }
 
 .rules {
-  flex: 1;
+  flex: 1 1 12rem;
   color: var(--p-text-muted-color);
 }

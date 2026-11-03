@@ -49,6 +49,11 @@ export class ApiService {
     return this.http.post<GameView>('/api/lobbies/join', { inviteCode });
   }
 
+  /** Löscht eine eigene Lobby, solange noch kein Gegner beigetreten ist. */
+  deleteLobby(gameId: string): Observable<void> {
+    return this.http.delete<void>(`/api/lobbies/${gameId}`);
+  }
+
   /** Der Server prüft, ob die Regeln gültig und die Flotte platzierbar ist. */
   checkRules(rules: RuleSet): Observable<RuleCheck> {
     return this.http.post<RuleCheck>('/api/rules/check', rules);

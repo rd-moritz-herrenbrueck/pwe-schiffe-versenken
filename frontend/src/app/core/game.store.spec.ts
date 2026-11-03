@@ -34,6 +34,37 @@ describe('GameStore', () => {
     http.expectOne(gameUrl).flush(view);
   }
 
+  describe('deleteLobby', () => {
+    it('deletesTheLobbyAndReportsSuccess', () => {
+      openAndLoad(gameView({ phase: 'WAITING', opponentNickname: null }));
+      const deleted = vi.fn();
+
+      store.deleteLobby(deleted);
+
+      const request = http.expectOne(`/api/lobbies/${GAME_ID}`);
+      expect(request.request.method).toBe('DELETE');
+      expect(deleted).not.toHaveBeenCalled();
+      request.flush(null, { status: 204, statusText: 'No Content' });
+      expect(deleted).toHaveBeenCalledTimes(1);
+    });
+
+    it('exposesTheErrorAndDoesNotReportSuccessWhenItFails', () => {
+      openAndLoad(gameView({ phase: 'WAITING', opponentNickname: null }));
+      const deleted = vi.fn();
+
+      store.deleteLobby(deleted);
+      http
+        .expectOne(`/api/lobbies/${GAME_ID}`)
+        .flush(
+          { code: 'WRONG_PHASE', message: 'Zu spät' },
+          { status: 409, statusText: 'Conflict' },
+        );
+
+      expect(store.error()?.code).toBe('WRONG_PHASE');
+      expect(deleted).not.toHaveBeenCalled();
+    });
+  });
+
   describe('open', () => {
     it('hasNoGameBeforeOpening', () => {
       expect(store.game()).toBeNull();

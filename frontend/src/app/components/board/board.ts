@@ -8,12 +8,18 @@ export interface CellPosition {
 
 type CellState = 'empty' | 'ship' | 'hit' | 'miss' | 'sunk';
 
+/** Vorschau eines Schiffs beim Platzieren: passt (`valid`), passt nicht (`invalid`) oder berührt ein anderes Schiff. */
+export interface PreviewCell extends CellPosition {
+  state: 'valid' | 'invalid' | 'touching';
+}
+
 interface Cell {
   x: number;
   y: number;
   state: CellState;
   shot: boolean;
   label: string;
+  preview: PreviewCell['state'] | null;
 }
 
 const STATE_LABELS: Record<CellState, string> = {
@@ -30,19 +36,28 @@ const STATE_LABELS: Record<CellState, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './board.scss',
   template: `
-    <div class="grid" [style.--cols]="width()">
+    <div
+      class="grid"
+      [style.--cols]="width()"
+      (mouseleave)="hoverEnded.emit()"
+      (dragleave)="gridDragLeave($event)"
+    >
       @for (cell of cells(); track cell.y * width() + cell.x) {
         <button
           type="button"
           class="cell"
           [attr.data-testid]="'cell-' + cell.x + '-' + cell.y"
           [attr.data-state]="cell.state"
+          [attr.data-preview]="cell.preview"
           [attr.aria-label]="cell.label"
           [disabled]="!interactive() || cell.shot"
           [draggable]="interactive() && cell.state === 'ship'"
           (click)="cellSelected.emit({ x: cell.x, y: cell.y })"
+          (mouseenter)="hover(cell)"
           (dragstart)="dragStart($event, cell)"
-          (dragover)="allowDrop($event)"
+          (dragenter)="hover(cell)"
+          (dragover)="allowDrop($event, cell)"
+          (dragend)="hoverEnded.emit()"
           (drop)="drop($event, cell)"
         ></button>
       }
@@ -55,11 +70,17 @@ export class Board {
   readonly ships = input<ShipView[]>([]);
   readonly shots = input<ShotView[]>([]);
   readonly interactive = input(false);
+  /** Felder, die als Vorschau hervorgehoben werden (z. B. das Schiff unter dem Mauszeiger). */
+  readonly preview = input<PreviewCell[]>([]);
   readonly cellSelected = output<CellPosition>();
   /** Ein Schiff wurde auf ein Feld gezogen. */
   readonly cellDropped = output<CellPosition>();
   /** Das Ziehen eines Schiffs hat auf einem seiner Felder begonnen. */
   readonly cellDragStarted = output<CellPosition>();
+  /** Maus oder gezogenes Schiff ist über einem Feld. */
+  readonly cellHovered = output<CellPosition>();
+  /** Maus oder gezogenes Schiff hat das Spielfeld verlassen oder das Ziehen ist zu Ende. */
+  readonly hoverEnded = output<void>();
 
   protected dragStart(event: DragEvent, cell: CellPosition): void {
     if (!this.interactive()) {
@@ -70,9 +91,24 @@ export class Board {
     this.cellDragStarted.emit({ x: cell.x, y: cell.y });
   }
 
-  protected allowDrop(event: Event): void {
+  protected hover(cell: CellPosition): void {
+    if (this.interactive()) {
+      this.cellHovered.emit({ x: cell.x, y: cell.y });
+    }
+  }
+
+  protected allowDrop(event: Event, cell: CellPosition): void {
     if (this.interactive()) {
       event.preventDefault();
+      this.hover(cell);
+    }
+  }
+
+  /** `dragleave` kommt auch beim Wechsel zwischen zwei Feldern, nur das Verlassen des Rasters zählt. */
+  protected gridDragLeave(event: DragEvent): void {
+    const target = event.relatedTarget as Node | null;
+    if (!target || !(event.currentTarget as HTMLElement).contains(target)) {
+      this.hoverEnded.emit();
     }
   }
 
@@ -89,6 +125,10 @@ export class Board {
     const states = new Map<number, CellState>();
     const shot = new Set<number>();
     const key = (x: number, y: number) => y * width + x;
+    const previews = new Map<number, PreviewCell['state']>();
+    for (const { x, y, state } of this.preview()) {
+      previews.set(key(x, y), state);
+    }
 
     for (const ship of this.ships()) {
       for (let i = 0; i < ship.length; i++) {
@@ -117,6 +157,7 @@ export class Board {
           state,
           shot: shot.has(key(x, y)),
           label: `Spalte ${x + 1}, Zeile ${y + 1}, ${STATE_LABELS[state]}`,
+          preview: previews.get(key(x, y)) ?? null,
         });
       }
     }

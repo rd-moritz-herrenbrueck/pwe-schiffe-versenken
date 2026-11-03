@@ -66,4 +66,41 @@ test.describe('Spiel erstellen und beitreten', () => {
 
     await closeAll(a);
   });
+
+  test('Ersteller löscht seine offene Lobby, sie verschwindet live aus der Liste', async ({
+    browser,
+  }) => {
+    const a = await registerPlayer(browser, uniqueName('Loesch'));
+    const b = await registerPlayer(browser, uniqueName('Zeuge'));
+
+    await a.page.getByTestId('create-lobby-button').click();
+    await expect(a.page.getByTestId('waiting-for-opponent')).toBeVisible();
+    const gameId = gameIdOf(a.page);
+    await expect(b.page.getByTestId(`lobby-${gameId}`)).toBeVisible();
+
+    await a.page.getByTestId('delete-lobby-button').click();
+
+    await expect(a.page).toHaveURL(/\/lobbies$/);
+    await expect(b.page.getByTestId(`lobby-${gameId}`)).toHaveCount(0);
+    await a.page.getByTestId('nav-my-games').click();
+    await expect(a.page.getByTestId(`game-${gameId}`)).toHaveCount(0);
+
+    await closeAll(a, b);
+  });
+
+  test('Wartende Lobby lässt sich in „Meine Spiele“ löschen', async ({ browser }) => {
+    const a = await registerPlayer(browser, uniqueName('Aufraeum'));
+
+    await a.page.getByTestId('create-lobby-button').click();
+    await expect(a.page.getByTestId('waiting-for-opponent')).toBeVisible();
+    const gameId = gameIdOf(a.page);
+    await a.page.getByTestId('nav-my-games').click();
+    await expect(a.page.getByTestId(`game-${gameId}`)).toBeVisible();
+
+    await a.page.getByTestId(`delete-game-${gameId}`).click();
+
+    await expect(a.page.getByTestId(`game-${gameId}`)).toHaveCount(0);
+
+    await closeAll(a);
+  });
 });

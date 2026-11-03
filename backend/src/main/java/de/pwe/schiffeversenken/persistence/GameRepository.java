@@ -30,9 +30,13 @@ public class GameRepository implements PanacheRepositoryBase<GameEntity, UUID> {
                 playerId).list();
     }
 
-    /** Nicht beendete Spiele, deren letzte Aktivität vor {@code cutoff} liegt. */
+    /** Laufende Spiele (Platzierung oder Spiel), deren letzte Aktivität vor {@code cutoff} liegt. */
     public List<GameEntity> listUnfinishedInactiveSince(Instant cutoff) {
-        return list("status in ?1 and updatedAt < ?2",
-                List.of(GamePhase.WAITING, GamePhase.PLACEMENT, GamePhase.RUNNING), cutoff);
+        return list("status in ?1 and updatedAt < ?2", List.of(GamePhase.PLACEMENT, GamePhase.RUNNING), cutoff);
+    }
+
+    /** Lobbys, die seit vor {@code cutoff} auf einen Gegner warten. */
+    public List<GameEntity> listWaitingCreatedBefore(Instant cutoff) {
+        return list("status = ?1 and createdAt < ?2", GamePhase.WAITING, cutoff);
     }
 }

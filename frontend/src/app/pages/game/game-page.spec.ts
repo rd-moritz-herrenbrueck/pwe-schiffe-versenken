@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { ChatMessage, GameView } from '../../core/models';
 import { PlayerService } from '../../core/player.service';
 import { GAME_ID, chatMessage, gameView, rules } from '../../testing/fixtures';
@@ -22,7 +22,7 @@ describe('GamePage', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        provideRouter([]),
+        provideRouter([{ path: 'lobbies', children: [] }]),
         ...sources.providers,
       ],
     });
@@ -469,6 +469,59 @@ describe('GamePage', () => {
 
       expect(byId('resign-confirm-button')).toBeNull();
       http.expectNone(`${gameUrl}/resign`);
+    });
+  });
+
+  describe('deleteLobby', () => {
+    const waiting = () =>
+      gameView({
+        phase: 'WAITING',
+        opponentNickname: null,
+        yourFleetReady: false,
+        opponentFleetReady: false,
+      });
+
+    it('offersDeletingWhileWaitingForAnOpponent', async () => {
+      await render(waiting());
+
+      expect(byId('delete-lobby-button')).not.toBeNull();
+    });
+
+    it.each(['PLACEMENT', 'RUNNING', 'FINISHED', 'ABANDONED'] as const)(
+      'offersNoDeletingInPhase%s',
+      async (phase) => {
+        await render(gameView({ phase }));
+
+        expect(byId('delete-lobby-button')).toBeNull();
+      },
+    );
+
+    it('deletesTheLobbyAndReturnsToTheLobbyList', async () => {
+      await render(waiting());
+
+      await click(byId('delete-lobby-button'));
+
+      const request = http.expectOne(`/api/lobbies/${GAME_ID}`);
+      expect(request.request.method).toBe('DELETE');
+      request.flush(null, { status: 204, statusText: 'No Content' });
+      await fixture.whenStable();
+      expect(TestBed.inject(Router).url).toBe('/lobbies');
+    });
+
+    it('staysOnThePageAndShowsTheErrorWhenDeletingFails', async () => {
+      await render(waiting());
+      await click(byId('delete-lobby-button'));
+
+      http
+        .expectOne(`/api/lobbies/${GAME_ID}`)
+        .flush(
+          { code: 'WRONG_PHASE', message: 'Nur Lobbys ohne Gegner lassen sich löschen' },
+          { status: 409, statusText: 'Conflict' },
+        );
+      await fixture.whenStable();
+
+      expect(byId('error-message')?.textContent).toContain('ohne Gegner');
+      expect(TestBed.inject(Router).url).toBe('/');
     });
   });
 

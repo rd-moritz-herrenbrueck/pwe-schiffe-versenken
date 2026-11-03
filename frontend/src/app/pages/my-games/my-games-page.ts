@@ -1,6 +1,7 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
+import { ButtonDirective } from 'primeng/button';
 import { Card } from 'primeng/card';
 import { Message } from 'primeng/message';
 import { Tag } from 'primeng/tag';
@@ -18,7 +19,7 @@ const PHASE_LABELS: Record<GamePhase, string> = {
 
 @Component({
   selector: 'app-my-games-page',
-  imports: [Card, Message, RouterLink, Tag],
+  imports: [ButtonDirective, Card, Message, RouterLink, Tag],
   styleUrl: './my-games-page.scss',
   template: `
     <p-card header="Meine Spiele">
@@ -54,6 +55,20 @@ const PHASE_LABELS: Record<GamePhase, string> = {
                     }
                   </span>
                 </a>
+                @if (game.phase === 'WAITING') {
+                  <button
+                    pButton
+                    type="button"
+                    size="small"
+                    severity="danger"
+                    [outlined]="true"
+                    aria-label="Lobby löschen"
+                    [attr.data-testid]="'delete-game-' + game.id"
+                    (click)="deleteLobby(game)"
+                  >
+                    <i class="pi pi-trash" aria-hidden="true"></i>
+                  </button>
+                }
               </li>
             }
           </ul>
@@ -63,17 +78,29 @@ const PHASE_LABELS: Record<GamePhase, string> = {
   `,
 })
 export class MyGamesPage {
+  private readonly api = inject(ApiService);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly games = signal<GameSummary[] | null>(null);
   protected readonly error = signal<string | null>(null);
 
   constructor() {
-    inject(ApiService)
+    this.api
       .listGames()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (games) => this.games.set(games),
+        error: (error) => this.error.set(toApiError(error).message),
+      });
+  }
+
+  protected deleteLobby(game: GameSummary): void {
+    this.error.set(null);
+    this.api
+      .deleteLobby(game.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.games.update((list) => (list ?? []).filter((g) => g.id !== game.id)),
         error: (error) => this.error.set(toApiError(error).message),
       });
   }

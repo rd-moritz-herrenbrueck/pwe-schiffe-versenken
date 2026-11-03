@@ -10,3 +10,42 @@
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+
+.hint {
+  margin: 0;
+  color: var(--p-text-muted-color);
+  font-size: 0.9rem;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+
+  li::before {
+    display: inline-block;
+    width: 0.75rem;
+    height: 0.75rem;
+    margin-right: 0.35rem;
+    border: 2px solid var(--legend-color);
+    border-radius: 2px;
+    vertical-align: -0.1rem;
+    content: '';
+  }
+
+  .valid {
+    --legend-color: var(--p-green-500);
+  }
+
+  .touching {
+    --legend-color: var(--p-orange-500);
+  }
+
+  .invalid {
+    --legend-color: var(--p-red-500);
+  }
+}

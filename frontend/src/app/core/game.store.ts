@@ -117,6 +117,14 @@ export class GameStore {
     );
   }
 
+  /** Löscht die geöffnete Lobby (nur ohne Gegner). `deleted` läuft nach dem Erfolg, bei Fehlern steht er in `error`. */
+  deleteLobby(deleted: () => void): void {
+    this.act(
+      (id) => this.api.deleteLobby(id),
+      () => deleted(),
+    );
+  }
+
   /** Lädt den Verlauf und führt ihn mit bereits per Ereignis eingegangenen Nachrichten zusammen. */
   loadChat(): void {
     const id = this.gameId;

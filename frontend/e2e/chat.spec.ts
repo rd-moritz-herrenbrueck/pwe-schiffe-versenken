@@ -44,4 +44,25 @@ test.describe('Chat', () => {
 
     await closeAll(a, b);
   });
+
+  test('Zu viele Nachrichten in kurzer Zeit werden begrenzt', async ({ browser }) => {
+    const a = await registerPlayer(browser, uniqueName('Spam'));
+    const b = await registerPlayer(browser, uniqueName('Opfer'));
+    await startOpenGame(a, b);
+
+    await a.page.getByTestId('chat-toggle').click();
+    for (let i = 1; i <= 5; i++) {
+      await a.page.getByTestId('chat-input').fill(`Nachricht ${i}`);
+      await a.page.getByTestId('chat-input').press('Enter');
+      await expect(a.page.getByTestId('chat').getByText(`Nachricht ${i}`)).toBeVisible();
+    }
+
+    await a.page.getByTestId('chat-input').fill('Nachricht 6');
+    await a.page.getByTestId('chat-input').press('Enter');
+
+    await expect(a.page.getByTestId('error-message')).toContainText('zu schnell');
+    await expect(a.page.getByTestId('chat').getByText('Nachricht 6')).toHaveCount(0);
+
+    await closeAll(a, b);
+  });
 });

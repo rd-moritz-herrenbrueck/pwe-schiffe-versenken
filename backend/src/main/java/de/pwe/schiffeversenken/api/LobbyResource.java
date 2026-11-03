@@ -16,9 +16,11 @@ import de.pwe.schiffeversenken.service.ServiceException;
 import io.smallrye.common.annotation.Blocking;
 import io.smallrye.mutiny.Multi;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
@@ -82,6 +84,14 @@ public class LobbyResource {
             return toView(lobbyService.joinByInviteCode(playerId, request.inviteCode()));
         }
         throw new ServiceException(ErrorCode.INVALID_REQUEST, "gameId oder inviteCode fehlt");
+    }
+
+    /** Löscht eine eigene Lobby, solange noch kein Gegner beigetreten ist. */
+    @DELETE
+    @Path("/{id}")
+    @ResponseStatus(204)
+    public void delete(@PathParam("id") UUID id) {
+        lobbyService.delete(currentPlayer.require().id(), id);
     }
 
     /** Änderungen der Liste offener Lobbys als Server-Sent Events, siehe {@link EventStreams}. */

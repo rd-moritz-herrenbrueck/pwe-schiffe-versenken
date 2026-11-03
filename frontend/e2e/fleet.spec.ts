@@ -42,4 +42,32 @@ test.describe('Flotte platzieren', () => {
 
     await closeAll(player);
   });
+
+  test('Vorschau zeigt beim Darüberfahren, ob das Schiff passt', async ({ browser }) => {
+    const player = await registerPlayer(browser, uniqueName('Vorschau'));
+    const { page } = player;
+
+    await page.getByTestId('play-vs-ai-button').click();
+    const board = page.getByTestId('own-board');
+    await expect(board).toBeVisible();
+
+    await board.getByTestId('cell-2-3').hover();
+    for (let x = 2; x < 7; x++) {
+      await expect(board.getByTestId(`cell-${x}-3`)).toHaveAttribute('data-preview', 'valid');
+    }
+    await expect(board.getByTestId('cell-7-3')).not.toHaveAttribute('data-preview');
+
+    await board.getByTestId('cell-8-3').hover();
+    await expect(board.getByTestId('cell-9-3')).toHaveAttribute('data-preview', 'invalid');
+
+    // Das Schiff ist gesetzt, ein zweites direkt daneben berührt es und wird gewarnt.
+    await board.getByTestId('cell-0-0').click();
+    await board.getByTestId('cell-0-1').hover();
+    await expect(board.getByTestId('cell-0-1')).toHaveAttribute('data-preview', 'touching');
+
+    await page.mouse.move(0, 0);
+    await expect(page.locator('[data-preview]')).toHaveCount(0);
+
+    await closeAll(player);
+  });
 });

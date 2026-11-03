@@ -1,4 +1,5 @@
 import { Component, DestroyRef, effect, inject, input, signal, untracked } from '@angular/core';
+import { Router } from '@angular/router';
 import { ButtonDirective } from 'primeng/button';
 import { Card } from 'primeng/card';
 import { Message } from 'primeng/message';
@@ -111,6 +112,18 @@ const SHOT_LABELS: Record<ShotResult, string> = {
         @switch (game.phase) {
           @case ('WAITING') {
             <p data-testid="waiting-for-opponent">Warte auf einen Gegner …</p>
+            <button
+              pButton
+              type="button"
+              size="small"
+              severity="danger"
+              [outlined]="true"
+              data-testid="delete-lobby-button"
+              (click)="deleteLobby()"
+            >
+              <i class="pi pi-trash" aria-hidden="true"></i>
+              Lobby löschen
+            </button>
             @if (game.inviteCode) {
               <p>
                 Einladungscode für deinen Gegner:
@@ -200,6 +213,7 @@ export class GamePage {
   readonly id = input.required<string>();
 
   protected readonly store = inject(GameStore);
+  private readonly router = inject(Router);
   protected readonly confirmingResign = signal(false);
   protected readonly chatOpen = signal(false);
 
@@ -226,6 +240,10 @@ export class GamePage {
 
   protected fire(cell: CellPosition): void {
     this.store.fire(cell.x, cell.y);
+  }
+
+  protected deleteLobby(): void {
+    this.store.deleteLobby(() => void this.router.navigateByUrl('/lobbies'));
   }
 
   protected resign(): void {

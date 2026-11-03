@@ -2,14 +2,12 @@ package de.pwe.schiffeversenken.service;
 
 import de.pwe.schiffeversenken.domain.Coordinate;
 import de.pwe.schiffeversenken.domain.Game;
-import de.pwe.schiffeversenken.domain.GamePhase;
 import de.pwe.schiffeversenken.domain.PlayerSide;
 import de.pwe.schiffeversenken.domain.ShipPlacement;
 import de.pwe.schiffeversenken.domain.ShotOutcome;
 import de.pwe.schiffeversenken.persistence.GameEntity;
 import de.pwe.schiffeversenken.persistence.GameRepository;
 import de.pwe.schiffeversenken.persistence.GameStateMapper;
-import de.pwe.schiffeversenken.persistence.Visibility;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -113,8 +111,8 @@ public class GameService {
     }
 
     /**
-     * Markiert nicht beendete Spiele ohne Aktivität seit {@code game.abandon.inactive-after} als
-     * {@code ABANDONED}.
+     * Markiert Spiele in Platzierung oder Lauf ohne Aktivität seit {@code game.abandon.inactive-after} als
+     * {@code ABANDONED}. Wartende Lobbys gehören nicht dazu, sie löscht {@link LobbyService#deleteExpiredLobbies()}.
      *
      * @return Anzahl der markierten Spiele
      */
@@ -123,14 +121,9 @@ public class GameService {
         List<GameEntity> inactive = games.listUnfinishedInactiveSince(clock.instant().minus(abandonInactiveAfter));
         for (GameEntity entity : inactive) {
             Game game = mapper.read(entity);
-            // Private Lobbys stehen nicht in der öffentlichen Liste und dürfen dort nicht auftauchen.
-            boolean wasListedLobby = game.phase() == GamePhase.WAITING && entity.visibility == Visibility.PUBLIC;
             game.abandon();
             access.save(entity, game);
             events.publishGameEvents(GameEvents.afterAbandon(entity.id));
-            if (wasListedLobby) {
-                events.publishLobbyClosed(entity.id);
-            }
         }
         return inactive.size();
     }

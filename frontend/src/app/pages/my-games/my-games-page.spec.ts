@@ -99,4 +99,55 @@ describe('MyGamesPage', () => {
       'Serverfehler',
     );
   });
+
+  describe('deleteWaitingLobbies', () => {
+    const button = (id: string) =>
+      root().querySelector<HTMLButtonElement>(`[data-testid="delete-game-${id}"]`);
+
+    it('offersDeletingOnlyForGamesWaitingForAnOpponent', async () => {
+      await render([
+        gameSummary({ id: 'g1', phase: 'WAITING', opponentNickname: null }),
+        gameSummary({ id: 'g2', phase: 'RUNNING' }),
+        gameSummary({ id: 'g3', phase: 'FINISHED', result: 'WON' }),
+      ]);
+
+      expect(button('g1')).not.toBeNull();
+      expect(button('g2')).toBeNull();
+      expect(button('g3')).toBeNull();
+    });
+
+    it('deletesTheLobbyAndRemovesItFromTheList', async () => {
+      await render([
+        gameSummary({ id: 'g1', phase: 'WAITING', opponentNickname: null }),
+        gameSummary({ id: 'g2', opponentNickname: 'Ben' }),
+      ]);
+
+      button('g1')!.click();
+      const request = http.expectOne('/api/lobbies/g1');
+      expect(request.request.method).toBe('DELETE');
+      request.flush(null, { status: 204, statusText: 'No Content' });
+      await fixture.whenStable();
+
+      expect(entry('g1')).toBeNull();
+      expect(entry('g2')).not.toBeNull();
+    });
+
+    it('keepsTheLobbyAndShowsTheErrorWhenDeletingFails', async () => {
+      await render([gameSummary({ id: 'g1', phase: 'WAITING', opponentNickname: null })]);
+
+      button('g1')!.click();
+      http
+        .expectOne('/api/lobbies/g1')
+        .flush(
+          { code: 'GAME_NOT_FOUND', message: 'Spiel nicht gefunden' },
+          { status: 404, statusText: 'Not Found' },
+        );
+      await fixture.whenStable();
+
+      expect(entry('g1')).not.toBeNull();
+      expect(root().querySelector('[data-testid="error-message"]')?.textContent).toContain(
+        'nicht gefunden',
+      );
+    });
+  });
 });

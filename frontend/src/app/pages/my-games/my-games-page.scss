@@ -11,10 +11,18 @@
   margin: 0;
   padding: 0;
   list-style: none;
+
+  li {
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
 }
 
 a {
+  flex: 1;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;

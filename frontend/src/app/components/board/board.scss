@@ -1,12 +1,18 @@
 :host {
   display: block;
+  // Sehr große Felder (bis 25x25) bleiben auf kleinen Bildschirmen bedienbar und scrollen seitlich.
+  overflow-x: auto;
 }
 
 .grid {
   --cell-size: 2.4rem;
+  --min-cell-size: 1.25rem;
   display: grid;
   grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
-  width: min(100%, calc(var(--cols) * var(--cell-size)));
+  width: max(
+    min(100%, calc(var(--cols) * var(--cell-size))),
+    calc(var(--cols) * var(--min-cell-size))
+  );
   gap: 1px;
   padding: 1px;
   background: var(--p-content-border-color);
@@ -61,5 +67,39 @@
     &::after {
       content: '✕';
     }
+  }
+}
+
+// Vorschau beim Platzieren, auch durch Symbole und Rahmen erkennbar und nicht nur durch Farbe.
+.cell[data-preview] {
+  outline: 2px solid var(--preview-color);
+  outline-offset: -2px;
+  background: color-mix(in srgb, var(--preview-color) 35%, var(--p-content-background));
+
+  &::after {
+    content: var(--preview-symbol);
+    color: var(--preview-color);
+    font-weight: 700;
+  }
+
+  &[data-preview='valid'] {
+    --preview-color: var(--p-green-500);
+    --preview-symbol: '';
+  }
+
+  &[data-preview='touching'] {
+    --preview-color: var(--p-orange-500);
+    --preview-symbol: '!';
+  }
+
+  &[data-preview='invalid'] {
+    --preview-color: var(--p-red-500);
+    --preview-symbol: '✕';
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cell {
+    transition: background-color 80ms ease-out;
   }
 }
