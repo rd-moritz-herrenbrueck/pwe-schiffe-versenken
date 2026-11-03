@@ -84,9 +84,9 @@ E2E-Tests (Playwright, Docker nötig). Der Stack läuft mit dem Testprofil `dock
 
 ```bash
 cd frontend
-npm install && npx playwright install chromium    # einmalig
+npm install                                       # einmalig
 npm run e2e:stack:up                              # Stack mit leerer Datenbank starten
-npm run e2e                                       # Tests gegen http://localhost:8081 (anderes Ziel: E2E_BASE_URL)
+npm run e2e                                       # installiert bei Bedarf Chromium, Tests gegen http://localhost:8081 (anderes Ziel: E2E_BASE_URL)
 npm run e2e:stack:down                            # Stack stoppen und Daten verwerfen
 ```
 
