@@ -1,5 +1,9 @@
 # Multi-Stage-Build: Maven-Build im JDK-Image, Laufzeit im schlanken JRE-Image.
 FROM eclipse-temurin:25-jdk AS build
+# Ohne unzip lädt mvnw die .tar.gz statt der .zip und scheitert an distributionSha256Sum (gilt nur für die .zip).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends unzip \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
 COPY .mvn/ .mvn/
 COPY mvnw pom.xml ./
