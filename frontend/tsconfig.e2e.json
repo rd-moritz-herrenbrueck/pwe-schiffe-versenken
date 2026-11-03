@@ -1,0 +1,12 @@
+/* Typprüfung der Playwright-Tests: `npx tsc -p tsconfig.e2e.json` */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "strict": true,
+    "moduleResolution": "bundler",
+    "types": ["node"]
+  },
+  "files": [],
+  "include": ["playwright.config.ts", "e2e/**/*.ts"]
+}

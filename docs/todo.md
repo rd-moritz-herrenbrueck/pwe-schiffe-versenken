@@ -85,15 +85,15 @@ Legende: `[ ]` offen · `[x]` erledigt · *(optional)* = Nice-to-have
 - [x] Erstes Release-Tag ausrollen (setzt grüne Tests aus Phase 3 voraus)
 
 ## Phase 7: E2E und Docker
-- [ ] Playwright einrichten (`frontend/e2e/`, `playwright.config.ts`)
-- [ ] E2E: Spiel erstellen/beitreten (offen und privat)
-- [ ] E2E: Zwei Spieler spielen bis zum Sieg (getrennte Browser-Contexts)
-- [ ] E2E: Reload mitten im Spiel
-- [ ] E2E: Spiel gegen KI
-- [ ] E2E: Chat
+- [x] Playwright einrichten (`frontend/e2e/`, `playwright.config.ts`)
+- [x] E2E: Spiel erstellen/beitreten (offen und privat)
+- [x] E2E: Zwei Spieler spielen bis zum Sieg (getrennte Browser-Contexts)
+- [x] E2E: Reload mitten im Spiel
+- [x] E2E: Spiel gegen KI
+- [x] E2E: Chat
 - [x] Dockerfiles für Backend und Frontend (vorgezogen in Phase 6)
-- [ ] `docker compose up` startet den gesamten Stack
-- [ ] Testprofil mit leerer Datenbank für E2E
+- [x] `docker compose up` startet den gesamten Stack
+- [x] Testprofil mit leerer Datenbank für E2E
 
 ## Phase 8: Abschluss
 - [x] CI-Pipeline (GitHub Actions): `mvn verify`, Frontend-Tests (vorgezogen in Phase 6)
@@ -101,3 +101,4 @@ Legende: `[ ]` offen · `[x]` erledigt · *(optional)* = Nice-to-have
 - [ ] README mit realen Start- und Testbefehlen aktualisieren
 - [ ] Feinschliff (Fehlermeldungen, Responsive Design, Rate-Limiting für Chat)
 - [ ] UI Optimierung des Schiffe platzieren: Bessere Visualisierung beim Drag & Drop
+- [ ] Offene Lobbies, die noch nicht gestartet wurden, nach 24h automatisch löschen und manuelles löschen ermöglichen

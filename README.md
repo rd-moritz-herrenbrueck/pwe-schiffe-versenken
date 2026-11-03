@@ -40,12 +40,13 @@ backend/              Quarkus-Anwendung (Maven, Java 25, Quarkus 3.40 LTS)
     persistence/      Panache-Entities, Repositories
   src/main/resources/db/migration/   Flyway-Migrationen
 frontend/             Angular-Anwendung (Angular 22, Vitest)
-  e2e/                Playwright-Tests (ab Phase 7)
+  e2e/                Playwright-Tests
 docs/
   Architektur.md      Architekturbeschreibung
   todo.md             Aufgabenliste / Roadmap
   ai-journal.md       Dokumentation der KI-gestützten Arbeit
-docker-compose.yml    Postgres (Backend + Frontend ab Phase 7)
+docker-compose.yml    Gesamter Stack (Postgres, Backend, Frontend)
+docker-compose.e2e.yml   Testprofil für E2E (leere Datenbank im RAM, fester KI-Seed)
 docker-compose.prod.yml  Produktions-Stack auf dem VPS
 .github/workflows/    CI (ci.yml) und Deployment (deploy.yml)
 ```
@@ -73,11 +74,20 @@ cd backend && ./mvnw test -Dtest='!*IntegrationTest'  # Nur Unit-Tests (ohne Doc
 cd frontend && npm test -- --watch=false  # Unit-Tests (Vitest)
 ```
 
-Zielzustand (ab Phase 7):
+Gesamter Stack (Frontend: http://localhost:8081, Port über `APP_PORT` änderbar):
 
 ```bash
-docker compose up --build            # Gesamter Stack, Frontend: http://localhost:4200
-cd frontend && npx playwright test   # E2E-Tests gegen den Docker-Compose-Stack
+docker compose up --build
+```
+
+E2E-Tests (Playwright, Docker nötig). Der Stack läuft mit dem Testprofil `docker-compose.e2e.yml`: Die Datenbank liegt im RAM und ist bei jedem Start leer.
+
+```bash
+cd frontend
+npm install && npx playwright install chromium    # einmalig
+npm run e2e:stack:up                              # Stack mit leerer Datenbank starten
+npm run e2e                                       # Tests gegen http://localhost:8081 (anderes Ziel: E2E_BASE_URL)
+npm run e2e:stack:down                            # Stack stoppen und Daten verwerfen
 ```
 
 ## Deployment

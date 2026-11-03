@@ -23,3 +23,7 @@ node_modules/
 # System
 .DS_Store
 Thumbs.db
+
+# Playwright
+playwright-report/
+test-results/

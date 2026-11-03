@@ -285,6 +285,10 @@ E2E-Szenarien:
 5. Chat zwischen zwei Spielern.
 6. Eigene Regeln/Feldgröße.
 
+Umsetzung: `frontend/e2e/*.spec.ts` (`lobby`, `game`, `ai`, `chat`, `fleet`) mit gemeinsamen Hilfsfunktionen in `helpers.ts`. Spieler sind getrennte Browser-Contexts mit eigenem Nickname. Die Tests laufen nacheinander (ein Worker), weil sie sich Datenbank und öffentliche Lobby-Liste teilen, und adressieren Elemente nur über `data-testid`. Zwei Spieler platzieren dieselbe bekannte Flotte (waagerecht in den Zeilen 0/2/4/6), so schießt A gezielt bis zum Sieg und B ins Wasser. Gegen die KI wird nur geprüft, dass sie antwortet und das Aufgeben funktioniert, da ihre Flotte zufällig ist. Szenario 6 (eigene Regeln/Feldgröße) ist noch offen.
+
+Testprofil: `docker-compose.e2e.yml` ist ein Overlay auf `docker-compose.yml`. Die Datenbank liegt im tmpfs (bei jedem Start leer, kein Port nach außen), das Backend läuft mit `GAME_AI_SEED=42`. Start, Lauf und Aufräumen über die npm-Skripte `e2e:stack:up`, `e2e` und `e2e:stack:down` (Compose-Projekt `schiffe-e2e`). Die Basis-URL ist `http://localhost:8081`, überschreibbar per `E2E_BASE_URL` (z. B. `http://localhost:4200` im Dev-Modus).
+
 ## 7. Betrieb mit Docker
 
 `docker-compose.yml`:
@@ -292,11 +296,12 @@ E2E-Szenarien:
 | Dienst | Image | Port |
 |---|---|---|
 | `db` | `postgres` (mit Volume für Daten) | 5432 |
-| `backend` | Quarkus (JVM-Image, Multi-Stage-Build mit Maven) | 8080 |
-| `frontend` | nginx mit gebautem Angular-Bundle, Reverse-Proxy auf `/api` | 4200 |
+| `backend` | Quarkus (JVM-Image, Multi-Stage-Build mit Maven) | 8080 (nur im Compose-Netz) |
+| `frontend` | nginx mit gebautem Angular-Bundle, Reverse-Proxy auf `/api` | 8081 (`APP_PORT`, intern 80) |
 
 - Konfiguration über Umgebungsvariablen (`QUARKUS_DATASOURCE_*`, `GAME_*`).
 - Der Reverse-Proxy im `frontend`-Container vermeidet CORS-Probleme. SSE braucht deaktiviertes Proxy-Buffering.
+- `docker compose up --build` startet den gesamten Stack. Die Dienste warten per Healthcheck aufeinander (`db` → `backend` → `frontend`), `up --wait` kehrt erst zurück, wenn alle gesund sind.
 - Für lokale Entwicklung startet nur `db` per Compose, Backend und Frontend laufen im Dev-Modus.
 
 ### 7.1 CI/CD und Produktion

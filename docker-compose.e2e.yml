@@ -1,0 +1,17 @@
+# Testprofil für die E2E-Tests: Overlay auf docker-compose.yml.
+# Die Datenbank liegt im RAM (tmpfs) und ist bei jedem Start leer, es bleibt kein Zustand zwischen Läufen.
+# Der KI-Seed macht den KI-Gegner reproduzierbar (siehe game.ai.seed).
+#
+#   docker compose -p schiffe-e2e -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait
+#   cd frontend && npx playwright test
+#   docker compose -p schiffe-e2e -f docker-compose.yml -f docker-compose.e2e.yml down -v
+services:
+  db:
+    ports: !reset []
+    volumes: !reset []
+    tmpfs:
+      - /var/lib/postgresql/data
+
+  backend:
+    environment:
+      GAME_AI_SEED: "42"
