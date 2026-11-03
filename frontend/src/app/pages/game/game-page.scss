@@ -1,0 +1,36 @@
+:host {
+  display: block;
+  max-width: 64rem;
+  margin: 1rem auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem 0;
+
+  h2 {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+}
+
+.resign-confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.boards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+
+  h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+  }
+}

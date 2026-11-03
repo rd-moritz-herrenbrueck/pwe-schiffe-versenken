@@ -14,7 +14,7 @@ Online-Multiplayer-Version von „Schiffe versenken“ als Webanwendung. Mehrere
 
 | Bereich | Technologie |
 |---|---|
-| Frontend | TypeScript, Angular (Standalone Components, Signals, Router, `HttpClient`) |
+| Frontend | TypeScript, Angular (Standalone Components, Signals, Router, `HttpClient`), PrimeNG (UI-Komponenten, Hell-/Dunkelmodus) |
 | Backend | Java, Quarkus (REST + Server-Sent Events), Hibernate Panache |
 | Datenbank | PostgreSQL, Flyway-Migrationen, JSONB für Spielzustand |
 | Build | Maven (Backend), npm (Frontend) |
@@ -178,7 +178,9 @@ Keine festen Werte wie `10` oder feste Flotten im Code: Feldgröße und Flotte i
 - Standalone Components und Signals, keine NgModules.
 - Services: `ApiService` (REST), `EventService` (SSE über `EventSource`), `PlayerService` (Token), `GameStore` (Signals).
 - Spielfeld als CSS-Grid, Größe aus dem `RuleSet`.
-- Stabile `data-testid`-Attribute für E2E (z. B. `cell-{x}-{y}`, `own-board`, `enemy-board`).
+- **UI-Bibliothek PrimeNG**, soweit möglich: Standardelemente (Buttons, Eingabefelder, Karten, Meldungen, Dialoge) mit PrimeNG-Komponenten umsetzen, eigene Komponenten nur, wo PrimeNG nichts Passendes bietet (z. B. Spielfeld).
+- **Hell- und Dunkelmodus sind Pflicht:** `ThemeService`, Klasse `app-dark` am `<html>` (= `darkModeSelector` von PrimeNG), Startwert aus gespeicherter Wahl bzw. Systemeinstellung. Eigene Styles über CSS-Variablen des Themes statt fester Farben.
+- Stabile `data-testid`-Attribute für E2E (z. B. `cell-{x}-{y}`, `own-board`, `enemy-board`). Frontend-Tests prüfen Verhalten über `data-testid`/`data-*`, nicht über PrimeNG-CSS-Klassen.
 
 ### Docker
 

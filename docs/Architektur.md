@@ -9,6 +9,8 @@
 | M3 | Spielstände speichern/fortsetzen | Jeder Zug wird in PostgreSQL persistiert; Spieler werden über Token wiedererkannt |
 | M4 | Standardregeln 10x10 | Default-`RuleSet` |
 | M5 | Mehrere Spiele parallel | Eigene Spiel-ID, zustandsloses Backend |
+| M6 | Hell- und Dunkelmodus | `ThemeService` mit Klasse `app-dark`, siehe 5.1 |
+| M7 | UI mit Komponentenbibliothek | PrimeNG, soweit möglich, siehe 5.1 |
 | O1 | Eigene Regeln/Feldgrößen | Konfigurierbares `RuleSet` |
 | O2 | Open/Private-Lobby | `visibility` + Einladungscode |
 | Z1 | Chat | Nachrichten pro Spiel (REST + SSE) |
@@ -195,6 +197,40 @@ Speicherformat (`GameStateMapper`):
 - **Spielfeld:** CSS-Grid, Größe aus dem `RuleSet`. Flotte per Klick/Drag platzieren, Drehen per Taste oder Button.
 - **Testbarkeit:** Stabile `data-testid`-Attribute (zum Beispiel `cell-{x}-{y}`, `own-board`, `enemy-board`).
 - Nach Reload oder Reconnect wird der Zustand immer vom Server neu geladen.
+
+### 5.1 UI-Bibliothek und Erscheinungsbild
+
+- **Komponentenbibliothek: PrimeNG**, soweit dies möglich ist. Für Standardelemente (Buttons, Eingabefelder, Karten, Listen, Meldungen, Bestätigungsdialoge) kommen PrimeNG-Komponenten zum Einsatz, nicht eigene Varianten. Eigene Komponenten gibt es nur dort, wo PrimeNG nichts Passendes bietet, etwa das Spielfeld (CSS-Grid) und die Flottenplatzierung.
+- PrimeNG 22 passt zu Angular 22 (Peer-Abhängigkeit `@angular/* ^22.1`, zusätzlich `@angular/cdk`). Das Theme kommt aus `@primeuix/themes` (Preset Aura), konfiguriert über `providePrimeNG`.
+- **Hell- und Dunkelmodus** sind Pflicht. `ThemeService` hält den Modus als Signal:
+  - Startwert: gespeicherte Wahl (`localStorage`, Schlüssel `schiffe.theme`), sonst die Systemeinstellung (`prefers-color-scheme`), sonst hell.
+  - Der Dunkelmodus setzt die CSS-Klasse `app-dark` am `<html>`-Element. Dasselbe ist der `darkModeSelector` von PrimeNG, damit PrimeNG-Komponenten und eigene Styles gemeinsam umschalten.
+  - Umschalter (`ThemeToggle`, `data-testid="theme-toggle"`) im Kopfbereich jeder Seite.
+- Eigene Styles (Spielfeld, Schiffe, Treffer) nutzen CSS-Variablen aus dem PrimeNG-Theme statt fester Farben, damit beide Modi lesbar bleiben (ausreichender Kontrast, Treffer und Fehlschuss nicht nur über die Farbe unterscheidbar).
+- Tests prüfen Verhalten über `data-testid` und `data-*`-Attribute, nicht über PrimeNG-interne CSS-Klassen. Die Bibliothek bleibt damit austauschbar.
+
+### 5.2 Festlegungen (Phase 5)
+
+Services und Store:
+- `PlayerService`: Token und Nickname als Signals, gespeichert im `localStorage` (`schiffe.token`, `schiffe.nickname`). `authInterceptor` sendet `Authorization: Bearer …` nur an `/api`-Anfragen. `authGuard` leitet Seiten ohne Token auf die Startseite um.
+- `ApiService`: eine Methode je REST-Endpunkt, liefert Observables. Fehler kommen als `HttpErrorResponse` mit `{ code, message }`.
+- `EventService`: `watchGame(id)` und `watchLobbies()` kapseln `EventSource` (über `EVENT_SOURCE_FACTORY` austauschbar). Das Token geht als `access_token` in die URL. `HEARTBEAT` wird gefiltert, Abmelden schließt die Verbindung. Wiederverbindung: Solange der Browser selbst neu verbindet, passiert nichts. Hat er die Verbindung endgültig geschlossen, öffnet der Service nach 1 s, 2 s und 5 s eine neue, danach endet der Stream mit einem Fehler. Ein `CONNECTED` setzt den Zähler zurück.
+- `GameStore`: hält `game`, `error` und `lastShot` als Signals. `open(id)` lädt den Zustand per `GET` und abonniert den Stream. **Jedes** Ereignis (auch `CONNECTED` nach einem Reconnect) löst ein erneutes Laden aus, das jeweils neueste Laden gewinnt. Aktionen übernehmen den Zustand aus der Antwort. Bei `CONCURRENT_MODIFICATION` wird neu geladen.
+
+Seiten und Routen (`authGuard` auf allen außer `/`):
+
+| Pfad | Seite | Kern |
+|---|---|---|
+| `/` | `HomePage` | Nickname (1–20 Zeichen, getrimmt), registriert den Spieler, leitet auf `/lobbies`. Mit vorhandenem Token direkt weiter. |
+| `/lobbies` | `LobbyListPage` | Offene Lobbys live (`LOBBY_OPENED`/`LOBBY_CLOSED`), „Lobby erstellen“ (Standardregeln), Beitreten. Danach `/games/{id}`. |
+| `/games` | `MyGamesPage` | Eigene Spiele mit Gegner, Phase, Zugrecht und Ergebnis, Link auf `/games/{id}`. |
+| `/games/:id` | `GamePage` | Je nach Phase: Warten, Flotte platzieren, Spiel, Ergebnis. Aufgeben mit Rückfrage. |
+
+Komponenten:
+- `Board`: Raster aus Schaltflächen `cell-{x}-{y}` mit `data-state` (`empty`, `ship`, `hit`, `miss`, `sunk`; Vorrang `sunk` > `hit` > `miss` > `ship`). Bereits beschossene Felder sind gesperrt, ohne `interactive` ist das ganze Feld gesperrt.
+- `FleetPlacement`: Klick auf ein Feld setzt das gewählte Schiff, Drehen per Button (`rotate-button`) oder Taste `R`. Ein Klick auf ein gesetztes Schiff nimmt es wieder auf. Die Komponente prüft nur Feldgrenzen und Überlappung. Die Berührungsregel prüft allein der Server (Fehler wird angezeigt). Bestätigen erst bei vollständiger Flotte.
+- Drag-and-drop ergänzt den Klick (HTML5-Drag): Schiffe aus der Liste oder von einem gesetzten Schiff auf ein Feld ziehen. Das echte Ziehen im Browser prüfen die E2E-Tests, die Unit-Tests lösen `dragstart`/`dragover`/`drop` direkt aus.
+- Das Bundle liegt mit PrimeNG bei etwa 620 kB (Anfangsgröße), das Warn-Budget in `angular.json` ist deshalb auf 800 kB angehoben.
 
 ## 6. Tests
 

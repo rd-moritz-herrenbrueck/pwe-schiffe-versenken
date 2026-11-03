@@ -1,0 +1,65 @@
+:host {
+  display: block;
+}
+
+.grid {
+  --cell-size: 2.4rem;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  width: min(100%, calc(var(--cols) * var(--cell-size)));
+  gap: 1px;
+  padding: 1px;
+  background: var(--p-content-border-color);
+  border-radius: var(--p-content-border-radius, 6px);
+}
+
+.cell {
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: var(--p-content-background);
+  color: var(--p-text-color);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &:not(:disabled):hover,
+  &:focus-visible {
+    background: var(--p-highlight-background);
+    outline: 2px solid var(--p-primary-color);
+    outline-offset: -2px;
+  }
+
+  // Zustände unterscheiden sich auch durch Symbole, nicht nur durch Farbe.
+  &[data-state='ship'] {
+    background: var(--p-primary-color);
+  }
+
+  &[data-state='miss']::after {
+    content: '•';
+    color: var(--p-text-muted-color);
+  }
+
+  &[data-state='hit'] {
+    background: var(--p-orange-500);
+    color: var(--p-surface-0);
+
+    &::after {
+      content: '✕';
+    }
+  }
+
+  &[data-state='sunk'] {
+    background: var(--p-red-600);
+    color: var(--p-surface-0);
+
+    &::after {
+      content: '✕';
+    }
+  }
+}

@@ -1,0 +1,40 @@
+:host {
+  display: block;
+  max-width: 48rem;
+  margin: 1rem auto;
+}
+
+.games {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--p-content-border-color);
+  border-radius: var(--p-content-border-radius, 6px);
+  color: inherit;
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--p-highlight-background);
+  }
+}
+
+.opponent {
+  font-weight: 600;
+}
+
+.status {
+  display: flex;
+  gap: 0.5rem;
+}

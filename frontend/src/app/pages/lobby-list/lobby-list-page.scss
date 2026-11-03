@@ -1,0 +1,36 @@
+:host {
+  display: block;
+  max-width: 48rem;
+  margin: 1rem auto;
+}
+
+.toolbar {
+  margin-bottom: 1rem;
+}
+
+.lobbies {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lobby {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--p-content-border-color);
+  border-radius: var(--p-content-border-radius, 6px);
+}
+
+.creator {
+  font-weight: 600;
+}
+
+.rules {
+  flex: 1;
+  color: var(--p-text-muted-color);
+}

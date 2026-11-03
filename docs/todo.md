@@ -47,18 +47,23 @@ Legende: `[ ]` offen · `[x]` erledigt · *(optional)* = Nice-to-have
 - [x] Event-Bus (In-Memory) und Spiel-Events
 - [x] SSE-Endpunkt `/api/games/{id}/events` inkl. Heartbeat
 - [x] SSE-Endpunkt für die Lobby-Liste
-- [ ] Integrationstests für SSE außerhalb der Sandbox mit Docker ausführen (`cd backend && ./mvnw verify`)
+- [x] Integrationstests für SSE außerhalb der Sandbox mit Docker ausführen (`cd backend && ./mvnw verify`)
 
 ## Phase 5: Frontend
-- [ ] `PlayerService` (Token im localStorage), `ApiService`, `EventService`, `GameStore`
-- [ ] Startseite mit Nickname
-- [ ] Lobby-Liste und Lobby erstellen (Standardregeln)
-- [ ] Flotte platzieren (Klick/Drag, Drehen)
-- [ ] Spielansicht (eigenes und gegnerisches Feld, Rundenanzeige)
-- [ ] „Meine Spiele“ und Fortsetzen nach Reload
-- [ ] Reconnect-Logik für SSE (Zustand neu laden)
-- [ ] `data-testid`-Attribute für E2E
-- [ ] Unit-Tests für Komponenten und Services
+- [x] Tests vorab geschrieben (TDD, rot) und Skelette angelegt
+- [x] Abnahme der Tests
+- [x] PrimeNG (+ `@primeuix/themes`, `@angular/cdk`) einbinden und Standardelemente damit umsetzen, soweit möglich
+- [x] Hell- und Dunkelmodus (`ThemeService`, Umschalter, Klasse `app-dark`, Systemeinstellung als Startwert)
+- [x] `PlayerService` (Token im localStorage), `ApiService`, `EventService`, `GameStore`
+- [x] Startseite mit Nickname
+- [x] Lobby-Liste und Lobby erstellen (Standardregeln)
+- [x] Flotte platzieren (Klick/Drag, Drehen)
+- [x] Spielansicht (eigenes und gegnerisches Feld, Rundenanzeige)
+- [x] „Meine Spiele“ und Fortsetzen nach Reload
+- [x] Reconnect-Logik für SSE (Zustand neu laden)
+- [x] `data-testid`-Attribute für E2E
+- [x] Unit-Tests für Komponenten und Services
+- [x] Frontend außerhalb der Sandbox im Browser gegen das laufende Backend prüfen (`docker compose up -d db`, `./mvnw quarkus:dev`, `npm start`; zwei Browser-Contexts, Hell-/Dunkelmodus)
 
 ## Phase 6: Erweiterungen
 - [ ] Einstellbare Regeln, Feldgrößen (max. 25x25) und Schiffslängen im UI, nur platzierbare Flotten auswählbar *(optional)*
@@ -71,9 +76,9 @@ Legende: `[ ]` offen · `[x]` erledigt · *(optional)* = Nice-to-have
 - [x] CI-Workflow `ci.yml`: `mvnw verify` (inkl. Testcontainers), Frontend-Tests und -Build bei PR und Push auf `main`
 - [x] Deploy-Workflow `deploy.yml`: bei Tag `v*` Images nach GHCR, per SSH auf den VPS ausrollen, Rollback per `workflow_dispatch`
 - [x] `docker-compose.prod.yml` (nur `127.0.0.1:APP_PORT` nach außen, Postgres nicht erreichbar)
-- [ ] GitHub-Environment `production` mit Variables und Secrets anlegen
-- [ ] VPS einrichten: Deploy-User, SSH-Key, vHost für `moritzherrenbrueck.de` im vorhandenen Reverse-Proxy, Backup per Cron
-- [ ] Erstes Release-Tag ausrollen (setzt grüne Tests aus Phase 3 voraus)
+- [x] GitHub-Environment `production` mit Variables und Secrets anlegen
+- [x] VPS einrichten: Deploy-User, SSH-Key, vHost für `moritzherrenbrueck.de` im vorhandenen Reverse-Proxy, Backup per Cron
+- [x] Erstes Release-Tag ausrollen (setzt grüne Tests aus Phase 3 voraus)
 
 ## Phase 7: E2E und Docker
 - [ ] Playwright einrichten (`frontend/e2e/`, `playwright.config.ts`)

@@ -1,5 +1,13 @@
-<header>
-  <h1 data-testid="app-title">Schiffe versenken</h1>
+<header class="app-header">
+  <h1 data-testid="app-title"><a routerLink="/">Schiffe versenken</a></h1>
+  @if (player.loggedIn()) {
+    <nav aria-label="Hauptnavigation">
+      <a data-testid="nav-lobbies" routerLink="/lobbies" routerLinkActive="active">Lobbys</a>
+      <a data-testid="nav-my-games" routerLink="/games" routerLinkActive="active">Meine Spiele</a>
+    </nav>
+    <span class="nickname" data-testid="player-nickname">{{ player.nickname() }}</span>
+  }
+  <app-theme-toggle class="theme" />
 </header>
 <main>
   <router-outlet />

@@ -22,7 +22,7 @@ Mehrere Spiele laufen parallel, Spielstände werden gespeichert und können jede
 
 | Bereich | Technologie |
 |---|---|
-| Frontend | TypeScript, Angular |
+| Frontend | TypeScript, Angular, PrimeNG (Hell-/Dunkelmodus) |
 | Backend | Java, Quarkus (REST + Server-Sent Events) |
 | Datenbank | PostgreSQL (Flyway-Migrationen, JSONB für Spielzustand) |
 | Build | Maven (Backend), npm (Frontend) |
