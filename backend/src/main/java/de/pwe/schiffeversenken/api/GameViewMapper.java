@@ -30,6 +30,14 @@ public final class GameViewMapper {
      * @param opponentNickname {@code null}, solange kein Gegner beigetreten ist
      */
     public static GameView toView(UUID gameId, PlayerSide viewer, String opponentNickname, Game game) {
+        return toView(gameId, viewer, opponentNickname, null, game);
+    }
+
+    /**
+     * @param inviteCode Einladungscode, nur für den Ersteller einer privaten Lobby, sonst {@code null}
+     */
+    public static GameView toView(UUID gameId, PlayerSide viewer, String opponentNickname, String inviteCode,
+                                  Game game) {
         GameSnapshot snapshot = game.snapshot();
         PlayerSide opponent = viewer.opponent();
         BoardSnapshot own = snapshot.boards().get(viewer);
@@ -37,7 +45,7 @@ public final class GameViewMapper {
         GameResult result = snapshot.winner() == null ? null
                 : snapshot.winner() == viewer ? GameResult.WON : GameResult.LOST;
         return new GameView(gameId, snapshot.phase(), viewer, opponentNickname, RuleSetDto.from(snapshot.rules()),
-                snapshot.currentTurn() == viewer, own != null, enemy != null, result,
+                snapshot.currentTurn() == viewer, own != null, enemy != null, result, inviteCode,
                 boardView(own, false), boardView(enemy, true));
     }
 

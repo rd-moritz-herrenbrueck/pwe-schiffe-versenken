@@ -1,5 +1,7 @@
 package de.pwe.schiffeversenken.api;
 
+import de.pwe.schiffeversenken.api.dto.ChatMessageDto;
+import de.pwe.schiffeversenken.api.dto.ChatRequest;
 import de.pwe.schiffeversenken.api.dto.GameEventDto;
 import de.pwe.schiffeversenken.api.dto.GameResult;
 import de.pwe.schiffeversenken.api.dto.GameSummary;
@@ -9,6 +11,7 @@ import de.pwe.schiffeversenken.api.dto.ShipPlacementDto;
 import de.pwe.schiffeversenken.api.dto.ShotRequest;
 import de.pwe.schiffeversenken.api.dto.ShotResponse;
 import de.pwe.schiffeversenken.domain.Coordinate;
+import de.pwe.schiffeversenken.service.ChatService;
 import de.pwe.schiffeversenken.service.ErrorCode;
 import de.pwe.schiffeversenken.service.FireResult;
 import de.pwe.schiffeversenken.service.GameEventBus;
@@ -29,6 +32,7 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.sse.OutboundSseEvent;
 import jakarta.ws.rs.sse.Sse;
+import org.jboss.resteasy.reactive.ResponseStatus;
 
 import java.util.List;
 import java.util.Map;
@@ -40,6 +44,9 @@ public class GameResource {
 
     @Inject
     GameService gameService;
+
+    @Inject
+    ChatService chatService;
 
     @Inject
     CurrentPlayer currentPlayer;
@@ -104,8 +111,24 @@ public class GameResource {
                         GameEventDto.from(event))));
     }
 
+    /** Chatverlauf, älteste Nachricht zuerst. */
+    @GET
+    @Path("/{id}/chat")
+    public List<ChatMessageDto> chatHistory(@PathParam("id") UUID id) {
+        return chatService.history(currentPlayer.require().id(), id).stream().map(ChatMessageDto::from).toList();
+    }
+
+    @POST
+    @Path("/{id}/chat")
+    @ResponseStatus(201)
+    public ChatMessageDto sendChat(@PathParam("id") UUID id, ChatRequest request) {
+        return ChatMessageDto.from(chatService.send(currentPlayer.require().id(), id,
+                request == null ? null : request.text()));
+    }
+
     private static GameView toView(PlayerGame game) {
-        return GameViewMapper.toView(game.id(), game.viewer(), game.opponentNickname(), game.game());
+        return GameViewMapper.toView(game.id(), game.viewer(), game.opponentNickname(), game.inviteCode(),
+                game.game());
     }
 
     private static GameSummary toSummary(OwnGame game) {

@@ -1,4 +1,4 @@
-import { GameSummary, GameView, LobbySummary, RuleSet } from '../core/models';
+import { ChatMessage, GameSummary, GameView, LobbySummary, RuleSet } from '../core/models';
 
 export const DEFAULT_RULES: RuleSet = {
   boardWidth: 10,
@@ -25,6 +25,7 @@ export function gameView(overrides: Partial<GameView> = {}): GameView {
     yourFleetReady: true,
     opponentFleetReady: true,
     result: null,
+    inviteCode: null,
     ownBoard: { ships: [], shots: [] },
     enemyBoard: { ships: [], shots: [] },
     ...overrides,
@@ -33,6 +34,16 @@ export function gameView(overrides: Partial<GameView> = {}): GameView {
 
 export function lobby(id: string, creatorNickname = 'Anna'): LobbySummary {
   return { id, creatorNickname, rules: DEFAULT_RULES, createdAt: '2026-11-03T12:00:00Z' };
+}
+
+export function chatMessage(overrides: Partial<ChatMessage> & { id: string }): ChatMessage {
+  return {
+    side: 'B',
+    nickname: 'Gegner',
+    text: 'Hallo',
+    createdAt: '2026-11-03T12:00:00Z',
+    ...overrides,
+  };
 }
 
 export function gameSummary(overrides: Partial<GameSummary> & { id: string }): GameSummary {

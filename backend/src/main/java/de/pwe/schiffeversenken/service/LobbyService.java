@@ -13,13 +13,21 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
+import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @ApplicationScoped
 public class LobbyService {
+
+    /** Länge und Zeichen des Einladungscodes. */
+    static final int INVITE_CODE_LENGTH = 8;
+    private static final String INVITE_CODE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+    private final SecureRandom inviteCodeRandom = new SecureRandom();
 
     @Inject
     GameRepository games;
@@ -39,23 +47,50 @@ public class LobbyService {
     @Inject
     EventPublisher events;
 
+    @Inject
+    AiOpponent ai;
+
     /** Erstellt eine öffentliche Lobby. Der Ersteller ist Spieler A. */
     @Transactional
     public PlayerGame create(UUID playerId, RuleSet rules) {
+        return create(playerId, rules, Visibility.PUBLIC, false);
+    }
+
+    /**
+     * Erstellt eine Lobby. Der Ersteller ist Spieler A.
+     *
+     * <ul>
+     *   <li>{@code PUBLIC}: steht in der Liste offener Lobbys und wird dort gemeldet.</li>
+     *   <li>{@code PRIVATE}: bekommt einen Einladungscode, steht nicht in der Liste und wird nicht gemeldet.</li>
+     *   <li>{@code vsAi}: Der Gegner ist die KI, sie hat ihre Flotte schon platziert und das Spiel startet in
+     *       {@code PLACEMENT}. Solche Spiele sind nie in der Liste und ohne Einladungscode, {@code visibility}
+     *       wird ignoriert.</li>
+     * </ul>
+     */
+    @Transactional
+    public PlayerGame create(UUID playerId, RuleSet rules, Visibility visibility, boolean vsAi) {
         PlayerEntity creator = players.findById(playerId);
         Game game = Game.create(rules);
         Instant now = clock.instant();
 
         GameEntity entity = new GameEntity();
         entity.id = UUID.randomUUID();
-        entity.visibility = Visibility.PUBLIC;
+        entity.visibility = vsAi ? Visibility.PRIVATE : visibility;
         entity.playerA = creator;
-        entity.aiOpponent = false;
+        entity.aiOpponent = vsAi;
         entity.createdAt = now;
         entity.updatedAt = now;
+        if (vsAi) {
+            game.join();
+            game.placeFleet(AiOpponent.SIDE, ai.placeFleet(rules));
+        } else if (visibility == Visibility.PRIVATE) {
+            entity.inviteCode = newInviteCode();
+        }
         mapper.write(game, entity);
         games.persist(entity);
-        events.publishLobbyEvent(LobbyEvent.opened(new OpenLobby(entity.id, creator.nickname, rules, now)));
+        if (entity.visibility == Visibility.PUBLIC) {
+            events.publishLobbyEvent(LobbyEvent.opened(new OpenLobby(entity.id, creator.nickname, rules, now)));
+        }
         return access.view(entity, PlayerSide.A, game);
     }
 
@@ -69,7 +104,8 @@ public class LobbyService {
     }
 
     /**
-     * Tritt als Spieler B bei.
+     * Tritt einer öffentlichen Lobby als Spieler B bei. Private Lobbys sind so nicht erreichbar, sie gelten als
+     * unbekannt.
      *
      * @throws ServiceException {@link ErrorCode#GAME_NOT_FOUND}, {@link ErrorCode#CANNOT_JOIN_OWN_GAME}
      * @throws de.pwe.schiffeversenken.domain.RuleViolationException wenn die Lobby nicht mehr offen ist
@@ -77,10 +113,28 @@ public class LobbyService {
     @Transactional
     public PlayerGame join(UUID playerId, UUID gameId) {
         GameEntity entity = games.findById(gameId);
-        // Private Lobbys sind nur über den Einladungscode erreichbar (Phase 6).
         if (entity == null || entity.visibility != Visibility.PUBLIC) {
             throw GameAccess.notFound();
         }
+        return join(playerId, entity);
+    }
+
+    /**
+     * Tritt einer privaten Lobby mit Einladungscode bei. Der Code wird getrimmt und ohne Beachtung der Groß- und
+     * Kleinschreibung verglichen.
+     *
+     * @throws ServiceException {@link ErrorCode#GAME_NOT_FOUND} bei unbekanntem Code,
+     *                          {@link ErrorCode#CANNOT_JOIN_OWN_GAME}
+     * @throws de.pwe.schiffeversenken.domain.RuleViolationException wenn die Lobby nicht mehr offen ist
+     */
+    @Transactional
+    public PlayerGame joinByInviteCode(UUID playerId, String inviteCode) {
+        String normalized = inviteCode == null ? "" : inviteCode.strip().toUpperCase(Locale.ROOT);
+        GameEntity entity = games.findByInviteCode(normalized).orElseThrow(GameAccess::notFound);
+        return join(playerId, entity);
+    }
+
+    private PlayerGame join(UUID playerId, GameEntity entity) {
         if (entity.playerA.id.equals(playerId)) {
             throw new ServiceException(ErrorCode.CANNOT_JOIN_OWN_GAME, "Der eigenen Lobby kann man nicht beitreten");
         }
@@ -89,7 +143,21 @@ public class LobbyService {
         entity.playerB = players.findById(playerId);
         access.save(entity, game);
         events.publishGameEvents(List.of(GameEvent.playerJoined(entity.id, entity.playerB.nickname)));
-        events.publishLobbyClosed(entity.id);
+        if (entity.visibility == Visibility.PUBLIC) {
+            events.publishLobbyClosed(entity.id);
+        }
         return access.view(entity, PlayerSide.B, game);
+    }
+
+    private String newInviteCode() {
+        String code;
+        do {
+            StringBuilder builder = new StringBuilder(INVITE_CODE_LENGTH);
+            for (int i = 0; i < INVITE_CODE_LENGTH; i++) {
+                builder.append(INVITE_CODE_ALPHABET.charAt(inviteCodeRandom.nextInt(INVITE_CODE_ALPHABET.length())));
+            }
+            code = builder.toString();
+        } while (games.findByInviteCode(code).isPresent());
+        return code;
     }
 }

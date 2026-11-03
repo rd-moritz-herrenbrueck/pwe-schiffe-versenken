@@ -40,6 +40,7 @@ describe('EventService', () => {
       'SHOT',
       'TURN_CHANGED',
       'GAME_FINISHED',
+      'CHAT',
     ])('emitsNamedEvent%s', (type) => {
       const events: GameEvent[] = [];
       subscription = service.watchGame(GAME_ID).subscribe((event) => events.push(event));

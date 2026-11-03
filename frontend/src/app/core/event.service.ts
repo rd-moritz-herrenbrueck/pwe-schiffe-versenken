@@ -24,6 +24,7 @@ const GAME_EVENTS = [
   'SHOT',
   'TURN_CHANGED',
   'GAME_FINISHED',
+  'CHAT',
 ] as const;
 const LOBBY_EVENTS = ['CONNECTED', 'LOBBY_OPENED', 'LOBBY_CLOSED'] as const;
 

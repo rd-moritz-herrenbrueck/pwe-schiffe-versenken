@@ -2,10 +2,13 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
+  ChatMessage,
+  CreateLobbyOptions,
   GameSummary,
   GameView,
   LobbySummary,
   PlayerCreated,
+  RuleCheck,
   RuleSet,
   ShipPlacement,
   ShotResponse,
@@ -24,12 +27,39 @@ export class ApiService {
     return this.http.get<LobbySummary[]>('/api/lobbies');
   }
 
-  createLobby(rules?: RuleSet): Observable<GameView> {
-    return this.http.post<GameView>('/api/lobbies', rules ? { rules } : {});
+  createLobby(options: CreateLobbyOptions = {}): Observable<GameView> {
+    const body: CreateLobbyOptions = {};
+    if (options.rules) {
+      body.rules = options.rules;
+    }
+    if (options.visibility) {
+      body.visibility = options.visibility;
+    }
+    if (options.vsAi !== undefined) {
+      body.vsAi = options.vsAi;
+    }
+    return this.http.post<GameView>('/api/lobbies', body);
   }
 
   joinLobby(gameId: string): Observable<GameView> {
     return this.http.post<GameView>('/api/lobbies/join', { gameId });
+  }
+
+  joinByInviteCode(inviteCode: string): Observable<GameView> {
+    return this.http.post<GameView>('/api/lobbies/join', { inviteCode });
+  }
+
+  /** Der Server prüft, ob die Regeln gültig und die Flotte platzierbar ist. */
+  checkRules(rules: RuleSet): Observable<RuleCheck> {
+    return this.http.post<RuleCheck>('/api/rules/check', rules);
+  }
+
+  listChat(id: string): Observable<ChatMessage[]> {
+    return this.http.get<ChatMessage[]>(`/api/games/${id}/chat`);
+  }
+
+  sendChat(id: string, text: string): Observable<ChatMessage> {
+    return this.http.post<ChatMessage>(`/api/games/${id}/chat`, { text });
   }
 
   listGames(): Observable<GameSummary[]> {

@@ -2,5 +2,6 @@ package de.pwe.schiffeversenken.api.dto;
 
 import java.util.UUID;
 
-public record JoinLobbyRequest(UUID gameId) {
+/** Beitritt per Spiel-ID (öffentliche Lobbys) oder Einladungscode (private Lobbys). */
+public record JoinLobbyRequest(UUID gameId, String inviteCode) {
 }

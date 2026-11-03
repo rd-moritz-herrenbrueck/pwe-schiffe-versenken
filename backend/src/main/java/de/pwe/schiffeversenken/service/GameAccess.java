@@ -51,13 +51,20 @@ class GameAccess {
         return entity.playerB != null && entity.playerB.id.equals(playerId) ? PlayerSide.B : null;
     }
 
+    /** Nickname der KI in Spielen gegen den Computer. */
+    static final String AI_NICKNAME = "KI";
+
     static String opponentNickname(GameEntity entity, PlayerSide viewer) {
+        if (entity.aiOpponent) {
+            return viewer == PlayerSide.A ? AI_NICKNAME : null;
+        }
         var opponent = viewer == PlayerSide.A ? entity.playerB : entity.playerA;
         return opponent == null ? null : opponent.nickname;
     }
 
     PlayerGame view(GameEntity entity, PlayerSide viewer, Game game) {
-        return new PlayerGame(entity.id, viewer, opponentNickname(entity, viewer), game);
+        String inviteCode = viewer == PlayerSide.A ? entity.inviteCode : null;
+        return new PlayerGame(entity.id, viewer, opponentNickname(entity, viewer), inviteCode, game);
     }
 
     /** Schreibt den Spielzustand und erzwingt die Versionsprüfung, damit Konflikte als Fehler ankommen. */

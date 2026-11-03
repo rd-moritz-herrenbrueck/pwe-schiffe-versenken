@@ -1,6 +1,6 @@
 package de.pwe.schiffeversenken.service;
 
-/** Ereignistypen eines Spiels. {@code CHAT} wird erst mit dem Chat (Phase 6) ausgelöst. */
+/** Ereignistypen eines Spiels. */
 public enum GameEventType {
     PLAYER_JOINED,
     FLEET_READY,

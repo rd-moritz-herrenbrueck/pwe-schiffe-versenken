@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { GAME_ID, gameView } from '../testing/fixtures';
+import { GAME_ID, chatMessage, gameView } from '../testing/fixtures';
 import { FakeEventSources, fakeEventSources } from '../testing/fake-event-source';
 import { GameStore } from './game.store';
 import { PlayerService } from './player.service';
@@ -257,6 +257,205 @@ describe('GameStore', () => {
       request.flush(gameView({ phase: 'FINISHED', result: 'LOST', yourTurn: false }));
       expect(store.game()?.phase).toBe('FINISHED');
       expect(store.game()?.result).toBe('LOST');
+    });
+  });
+
+  describe('chat', () => {
+    const chatUrl = `${gameUrl}/chat`;
+    const first = chatMessage({ id: 'm1', text: 'eins', createdAt: '2026-11-03T12:00:01Z' });
+    const second = chatMessage({ id: 'm2', text: 'zwei', createdAt: '2026-11-03T12:00:02Z' });
+    const own = chatMessage({
+      id: 'm3',
+      side: 'A',
+      nickname: 'Anna',
+      createdAt: '2026-11-03T12:00:03Z',
+    });
+
+    function loadChat(history = [first]): void {
+      store.loadChat();
+      http.expectOne(chatUrl).flush(history);
+    }
+
+    it('hasNoMessagesBeforeLoading', () => {
+      openAndLoad();
+
+      expect(store.messages()).toEqual([]);
+      expect(store.unreadChat()).toBe(0);
+    });
+
+    it('loadsHistoryOnlyWhenRequested', () => {
+      openAndLoad();
+
+      http.expectNone(chatUrl);
+      loadChat([first, second]);
+
+      expect(store.messages()).toEqual([first, second]);
+    });
+
+    it('appendsMessageFromChatEventWithoutReloadingTheGame', () => {
+      openAndLoad();
+      loadChat([first]);
+
+      sources.latest().emit('CHAT', { gameId: GAME_ID, message: second });
+
+      http.expectNone(gameUrl);
+      expect(store.messages()).toEqual([first, second]);
+    });
+
+    it('ignoresChatEventForMessageThatIsAlreadyKnown', () => {
+      openAndLoad();
+      loadChat([first]);
+
+      sources.latest().emit('CHAT', { gameId: GAME_ID, message: first });
+
+      expect(store.messages()).toEqual([first]);
+    });
+
+    it('keepsMessagesThatArrivedByEventWhileTheHistoryWasLoading', () => {
+      openAndLoad();
+      store.loadChat();
+      const request = http.expectOne(chatUrl);
+
+      sources.latest().emit('CHAT', { gameId: GAME_ID, message: second });
+      request.flush([first, second]);
+
+      expect(store.messages()).toEqual([first, second]);
+    });
+
+    it('sendsTextAndAddsTheStoredMessage', () => {
+      openAndLoad();
+      loadChat([first]);
+
+      store.sendChat('Hallo');
+
+      const request = http.expectOne(chatUrl);
+      expect(request.request.method).toBe('POST');
+      expect(request.request.body).toEqual({ text: 'Hallo' });
+      request.flush(own);
+      expect(store.messages()).toEqual([first, own]);
+    });
+
+    it('showsSentMessageOnlyOnceWhenTheEventEchoesIt', () => {
+      openAndLoad();
+      loadChat([]);
+      store.sendChat('Hallo');
+      http.expectOne(chatUrl).flush(own);
+
+      sources.latest().emit('CHAT', { gameId: GAME_ID, message: own });
+
+      expect(store.messages()).toEqual([own]);
+    });
+
+    it('showsSentMessageOnlyOnceWhenTheEventArrivesFirst', () => {
+      openAndLoad();
+      loadChat([]);
+      store.sendChat('Hallo');
+      const request = http.expectOne(chatUrl);
+
+      sources.latest().emit('CHAT', { gameId: GAME_ID, message: own });
+      request.flush(own);
+
+      expect(store.messages()).toEqual([own]);
+    });
+
+    it('exposesErrorWhenSendingFails', () => {
+      openAndLoad();
+      loadChat([]);
+
+      store.sendChat('Hallo');
+
+      http
+        .expectOne(chatUrl)
+        .flush(
+          { code: 'INVALID_REQUEST', message: 'zu lang' },
+          { status: 400, statusText: 'Bad Request' },
+        );
+      expect(store.messages()).toEqual([]);
+      expect(store.error()).toEqual({ code: 'INVALID_REQUEST', message: 'zu lang' });
+    });
+
+    it('reloadsHistoryWhenStreamConnectsAgainAfterTheChatWasLoaded', () => {
+      openAndLoad();
+      loadChat([first]);
+
+      sources.latest().emit('CONNECTED', { gameId: GAME_ID });
+
+      http.expectOne(gameUrl).flush(gameView());
+      http.expectOne(chatUrl).flush([first, second]);
+      expect(store.messages()).toEqual([first, second]);
+    });
+
+    it('doesNotLoadHistoryOnConnectedWhenTheChatWasNeverOpened', () => {
+      openAndLoad();
+
+      sources.latest().emit('CONNECTED', { gameId: GAME_ID });
+
+      http.expectOne(gameUrl).flush(gameView());
+      http.expectNone(chatUrl);
+    });
+
+    describe('unreadMessages', () => {
+      beforeEach(() => {
+        openAndLoad();
+        loadChat([]);
+      });
+
+      it('countsMessagesOfTheOpponentWhileTheChatIsHidden', () => {
+        sources.latest().emit('CHAT', { gameId: GAME_ID, message: first });
+        sources.latest().emit('CHAT', { gameId: GAME_ID, message: second });
+
+        expect(store.unreadChat()).toBe(2);
+      });
+
+      it('doesNotCountOwnMessages', () => {
+        sources.latest().emit('CHAT', { gameId: GAME_ID, message: own });
+
+        expect(store.unreadChat()).toBe(0);
+      });
+
+      it('doesNotCountDuplicates', () => {
+        sources.latest().emit('CHAT', { gameId: GAME_ID, message: first });
+        sources.latest().emit('CHAT', { gameId: GAME_ID, message: first });
+
+        expect(store.unreadChat()).toBe(1);
+      });
+
+      it('resetsWhenTheChatBecomesVisible', () => {
+        sources.latest().emit('CHAT', { gameId: GAME_ID, message: first });
+
+        store.setChatVisible(true);
+
+        expect(store.unreadChat()).toBe(0);
+      });
+
+      it('countsNothingWhileTheChatIsVisible', () => {
+        store.setChatVisible(true);
+
+        sources.latest().emit('CHAT', { gameId: GAME_ID, message: first });
+
+        expect(store.unreadChat()).toBe(0);
+        expect(store.messages()).toEqual([first]);
+      });
+
+      it('countsAgainAfterTheChatIsHidden', () => {
+        store.setChatVisible(true);
+        store.setChatVisible(false);
+
+        sources.latest().emit('CHAT', { gameId: GAME_ID, message: first });
+
+        expect(store.unreadChat()).toBe(1);
+      });
+    });
+
+    it('dropsChatWhenTheGameIsClosed', () => {
+      openAndLoad();
+      loadChat([first]);
+      sources.latest().emit('CHAT', { gameId: GAME_ID, message: second });
+
+      store.close();
+
+      expect(store.messages()).toEqual([]);
+      expect(store.unreadChat()).toBe(0);
     });
   });
 });

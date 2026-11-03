@@ -51,7 +51,7 @@ class GameViewMapperTest {
         GameView view = GameViewMapper.toView(GAME_ID, A, null, Game.create(RULES));
 
         assertEquals(new GameView(GAME_ID, GamePhase.WAITING, A, null, RuleSetDto.from(RULES), false, false, false,
-                null, EMPTY_BOARD, EMPTY_BOARD), view);
+                null, null, EMPTY_BOARD, EMPTY_BOARD), view);
     }
 
     @Test

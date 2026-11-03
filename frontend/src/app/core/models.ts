@@ -3,6 +3,7 @@ export type PlayerSide = 'A' | 'B';
 export type GamePhase = 'WAITING' | 'PLACEMENT' | 'RUNNING' | 'FINISHED' | 'ABANDONED';
 export type GameResult = 'WON' | 'LOST';
 export type ShotResult = 'MISS' | 'HIT' | 'SUNK' | 'WIN';
+export type Visibility = 'PUBLIC' | 'PRIVATE';
 
 export interface RuleSet {
   boardWidth: number;
@@ -44,6 +45,8 @@ export interface GameView {
   yourFleetReady: boolean;
   opponentFleetReady: boolean;
   result: GameResult | null;
+  /** Nur für den Ersteller einer privaten Lobby, sonst `null`. */
+  inviteCode: string | null;
   ownBoard: BoardView;
   enemyBoard: BoardView;
 }
@@ -61,6 +64,28 @@ export interface LobbySummary {
   id: string;
   creatorNickname: string;
   rules: RuleSet;
+  createdAt: string;
+}
+
+/** Ohne `rules` gelten die Standardregeln, ohne `visibility` ist die Lobby öffentlich. */
+export interface CreateLobbyOptions {
+  rules?: RuleSet;
+  visibility?: Visibility;
+  vsAi?: boolean;
+}
+
+/** Antwort der Regelprüfung: `code` und `message` nur bei `valid === false`. */
+export interface RuleCheck {
+  valid: boolean;
+  code?: string;
+  message?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  side: PlayerSide;
+  nickname: string;
+  text: string;
   createdAt: string;
 }
 
@@ -88,7 +113,8 @@ export type GameEventType =
   | 'GAME_STARTED'
   | 'SHOT'
   | 'TURN_CHANGED'
-  | 'GAME_FINISHED';
+  | 'GAME_FINISHED'
+  | 'CHAT';
 
 export interface GameEvent {
   type: GameEventType;
@@ -102,6 +128,7 @@ export interface GameEvent {
   currentTurn?: PlayerSide;
   phase?: GamePhase;
   winner?: PlayerSide;
+  message?: ChatMessage;
 }
 
 export type LobbyEventType = 'CONNECTED' | 'LOBBY_OPENED' | 'LOBBY_CLOSED';

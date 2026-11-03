@@ -6,6 +6,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @ApplicationScoped
@@ -16,6 +17,10 @@ public class GameRepository implements PanacheRepositoryBase<GameEntity, UUID> {
         return find("from GameEntity g join fetch g.playerA where g.status = ?1 and g.visibility = ?2"
                         + " order by g.createdAt desc, g.id",
                 GamePhase.WAITING, Visibility.PUBLIC).list();
+    }
+
+    public Optional<GameEntity> findByInviteCode(String inviteCode) {
+        return find("inviteCode", inviteCode).firstResultOptional();
     }
 
     /** Spiele, an denen der Spieler beteiligt ist, zuletzt aktive zuerst. */

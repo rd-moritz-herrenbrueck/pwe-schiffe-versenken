@@ -3,16 +3,18 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { ButtonDirective } from 'primeng/button';
 import { Card } from 'primeng/card';
+import { InputText } from 'primeng/inputtext';
 import { Message } from 'primeng/message';
 import { Observable } from 'rxjs';
+import { CreateLobbyForm } from '../../components/create-lobby-form/create-lobby-form';
 import { ApiService } from '../../core/api.service';
 import { EventService } from '../../core/event.service';
 import { toApiError } from '../../core/errors';
-import { GameView, LobbyEvent, LobbySummary } from '../../core/models';
+import { CreateLobbyOptions, GameView, LobbyEvent, LobbySummary } from '../../core/models';
 
 @Component({
   selector: 'app-lobby-list-page',
-  imports: [ButtonDirective, Card, Message],
+  imports: [ButtonDirective, Card, CreateLobbyForm, InputText, Message],
   styleUrl: './lobby-list-page.scss',
   template: `
     <p-card header="Offene Lobbys">
@@ -20,6 +22,54 @@ import { GameView, LobbyEvent, LobbySummary } from '../../core/models';
         <button pButton type="button" data-testid="create-lobby-button" (click)="create()">
           <i class="pi pi-plus" aria-hidden="true"></i>
           Lobby erstellen
+        </button>
+        <button
+          pButton
+          type="button"
+          severity="secondary"
+          data-testid="open-lobby-form-button"
+          [attr.aria-expanded]="formOpen()"
+          (click)="formOpen.set(!formOpen())"
+        >
+          <i class="pi pi-sliders-h" aria-hidden="true"></i>
+          Mit Optionen
+        </button>
+        <button
+          pButton
+          type="button"
+          severity="secondary"
+          data-testid="play-vs-ai-button"
+          (click)="playAgainstAi()"
+        >
+          <i class="pi pi-desktop" aria-hidden="true"></i>
+          Gegen die KI spielen
+        </button>
+      </div>
+
+      @if (formOpen()) {
+        <app-create-lobby-form data-testid="create-lobby-form" (submitted)="createWith($event)" />
+      }
+
+      <div class="invite">
+        <input
+          pInputText
+          data-testid="invite-code-input"
+          aria-label="Einladungscode"
+          placeholder="Einladungscode"
+          autocomplete="off"
+          [value]="inviteCode()"
+          (input)="inviteCode.set($any($event.target).value)"
+          (keydown.enter)="joinByCode()"
+        />
+        <button
+          pButton
+          type="button"
+          severity="secondary"
+          data-testid="join-by-code-button"
+          [disabled]="!inviteCode().trim()"
+          (click)="joinByCode()"
+        >
+          Mit Code beitreten
         </button>
       </div>
 
@@ -64,6 +114,8 @@ export class LobbyListPage {
 
   protected readonly lobbies = signal<LobbySummary[] | null>(null);
   protected readonly error = signal<string | null>(null);
+  protected readonly formOpen = signal(false);
+  protected readonly inviteCode = signal('');
 
   constructor() {
     this.load();
@@ -79,6 +131,21 @@ export class LobbyListPage {
 
   protected create(): void {
     this.enter(this.api.createLobby());
+  }
+
+  protected createWith(options: Required<CreateLobbyOptions>): void {
+    this.enter(this.api.createLobby(options));
+  }
+
+  protected playAgainstAi(): void {
+    this.enter(this.api.createLobby({ vsAi: true }));
+  }
+
+  protected joinByCode(): void {
+    const code = this.inviteCode().trim();
+    if (code) {
+      this.enter(this.api.joinByInviteCode(code));
+    }
   }
 
   protected join(lobby: LobbySummary): void {

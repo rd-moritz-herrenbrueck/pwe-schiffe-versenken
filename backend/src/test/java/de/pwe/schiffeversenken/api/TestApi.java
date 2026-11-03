@@ -53,6 +53,39 @@ public final class TestApi {
         return as(token).body(Map.of("gameId", gameId)).when().post("/api/lobbies/join").then();
     }
 
+    public static ValidatableResponse joinByCode(String token, String inviteCode) {
+        return as(token).body(Map.of("inviteCode", inviteCode)).when().post("/api/lobbies/join").then();
+    }
+
+    /** Private Lobby mit Standardregeln, liefert die Antwort ({@code id}, {@code inviteCode}). */
+    public static ValidatableResponse createPrivateLobby(String token, Map<String, Object> rules) {
+        return as(token).body(Map.of("rules", rules, "visibility", "PRIVATE")).when().post("/api/lobbies").then();
+    }
+
+    /** Spiel gegen die KI, liefert die Spiel-ID. */
+    public static String createAiGame(String token, Map<String, Object> rules) {
+        return as(token).body(Map.of("rules", rules, "vsAi", true)).when().post("/api/lobbies")
+                .then().statusCode(201)
+                .extract().path("id");
+    }
+
+    public static ValidatableResponse sendChat(String token, String gameId, String text) {
+        return as(token).body(Map.of("text", text)).when().post("/api/games/{id}/chat", gameId).then();
+    }
+
+    public static ValidatableResponse readChat(String token, String gameId) {
+        return as(token).when().get("/api/games/{id}/chat", gameId).then();
+    }
+
+    /** Zwei Spieler, Lobby erstellt und beigetreten, die Flotten fehlen noch (Phase {@code PLACEMENT}). */
+    public static TwoPlayerGame placementGame(Map<String, Object> rules) {
+        String tokenA = newPlayer("Ada");
+        String tokenB = newPlayer("Bob");
+        String gameId = createLobby(tokenA, rules);
+        join(tokenB, gameId).statusCode(200);
+        return new TwoPlayerGame(tokenA, tokenB, gameId);
+    }
+
     public static ValidatableResponse placeFleet(String token, String gameId, List<Map<String, Object>> ships) {
         return as(token).body(Map.of("ships", ships)).when().put("/api/games/{id}/fleet", gameId).then();
     }

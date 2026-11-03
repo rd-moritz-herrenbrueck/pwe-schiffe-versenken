@@ -5,6 +5,7 @@ import { Message } from 'primeng/message';
 import { Tag } from 'primeng/tag';
 import { GameStore } from '../../core/game.store';
 import { ShotResult } from '../../core/models';
+import { Chat } from '../../components/chat/chat';
 import { Board, CellPosition } from '../../components/board/board';
 import { FleetPlacement } from '../../components/fleet-placement/fleet-placement';
 
@@ -17,7 +18,7 @@ const SHOT_LABELS: Record<ShotResult, string> = {
 
 @Component({
   selector: 'app-game-page',
-  imports: [Board, ButtonDirective, Card, FleetPlacement, Message, Tag],
+  imports: [Board, ButtonDirective, Card, Chat, FleetPlacement, Message, Tag],
   styleUrl: './game-page.scss',
   template: `
     @if (store.error(); as error) {
@@ -75,9 +76,47 @@ const SHOT_LABELS: Record<ShotResult, string> = {
           }
         </div>
 
+        @if (game.phase === 'PLACEMENT' || game.phase === 'RUNNING' || game.phase === 'FINISHED') {
+          <div class="chat-bar">
+            <button
+              pButton
+              type="button"
+              size="small"
+              severity="secondary"
+              data-testid="chat-toggle"
+              [attr.aria-expanded]="chatOpen()"
+              (click)="toggleChat()"
+            >
+              <i class="pi pi-comments" aria-hidden="true"></i>
+              Chat
+            </button>
+            @if (store.unreadChat() > 0) {
+              <p-tag
+                severity="danger"
+                data-testid="chat-unread"
+                [value]="store.unreadChat().toString()"
+              />
+            }
+          </div>
+          @if (chatOpen()) {
+            <app-chat
+              data-testid="chat"
+              [messages]="store.messages()"
+              [you]="game.you"
+              (send)="store.sendChat($event)"
+            />
+          }
+        }
+
         @switch (game.phase) {
           @case ('WAITING') {
             <p data-testid="waiting-for-opponent">Warte auf einen Gegner …</p>
+            @if (game.inviteCode) {
+              <p>
+                Einladungscode für deinen Gegner:
+                <strong class="invite-code" data-testid="invite-code">{{ game.inviteCode }}</strong>
+              </p>
+            }
           }
           @case ('PLACEMENT') {
             @if (game.yourFleetReady) {
@@ -162,16 +201,27 @@ export class GamePage {
 
   protected readonly store = inject(GameStore);
   protected readonly confirmingResign = signal(false);
+  protected readonly chatOpen = signal(false);
 
   constructor() {
     effect(() => {
       const id = this.id();
       untracked(() => {
         this.confirmingResign.set(false);
+        this.chatOpen.set(false);
         this.store.open(id);
       });
     });
     inject(DestroyRef).onDestroy(() => this.store.close());
+  }
+
+  protected toggleChat(): void {
+    const open = !this.chatOpen();
+    this.chatOpen.set(open);
+    this.store.setChatVisible(open);
+    if (open) {
+      this.store.loadChat();
+    }
   }
 
   protected fire(cell: CellPosition): void {

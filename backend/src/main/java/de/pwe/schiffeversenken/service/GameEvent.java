@@ -11,39 +11,46 @@ import java.util.UUID;
 
 /**
  * Ereignis eines Spiels. Alle Spieler des Spiels erhalten dieselben Ereignisse, sie enthalten daher nur öffentliche
- * Informationen (nie Schiffspositionen, außer dem versenkten Schiff). Je nach Typ sind nur einzelne Felder gesetzt,
- * die übrigen sind {@code null}.
+ * Informationen (nie Schiffspositionen, außer dem versenkten Schiff). Je nach Typ sind nur einzelne Felder gesetzt
+ * (bei {@code CHAT} die Nachricht), die übrigen sind {@code null}.
  */
 public record GameEvent(GameEventType type, UUID gameId, PlayerSide side, String nickname, Coordinate target,
                         ShotResult result, ShipPlacement sunkShip, PlayerSide currentTurn, GamePhase phase,
-                        PlayerSide winner) {
+                        PlayerSide winner, ChatEntry message) {
+
+    public static GameEvent chat(UUID gameId, ChatEntry message) {
+        return new GameEvent(GameEventType.CHAT, gameId, null, null, null, null, null, null, null, null, message);
+    }
 
     public static GameEvent playerJoined(UUID gameId, String nickname) {
-        return new GameEvent(GameEventType.PLAYER_JOINED, gameId, null, nickname, null, null, null, null, null, null);
+        return new GameEvent(GameEventType.PLAYER_JOINED, gameId, null, nickname, null, null, null, null, null,
+                null, null);
     }
 
     public static GameEvent fleetReady(UUID gameId, PlayerSide side) {
-        return new GameEvent(GameEventType.FLEET_READY, gameId, side, null, null, null, null, null, null, null);
+        return new GameEvent(GameEventType.FLEET_READY, gameId, side, null, null, null, null, null, null, null,
+                null);
     }
 
     public static GameEvent gameStarted(UUID gameId, PlayerSide currentTurn) {
         return new GameEvent(GameEventType.GAME_STARTED, gameId, null, null, null, null, null, currentTurn, null,
-                null);
+                null, null);
     }
 
     /** Schuss von {@code side} auf das Feld des Gegners. */
     public static GameEvent shot(UUID gameId, PlayerSide side, ShotOutcome outcome) {
         return new GameEvent(GameEventType.SHOT, gameId, side, null, outcome.target(), outcome.result(),
-                outcome.sunkShip().orElse(null), null, null, null);
+                outcome.sunkShip().orElse(null), null, null, null, null);
     }
 
     public static GameEvent turnChanged(UUID gameId, PlayerSide currentTurn) {
         return new GameEvent(GameEventType.TURN_CHANGED, gameId, null, null, null, null, null, currentTurn, null,
-                null);
+                null, null);
     }
 
     /** {@code phase} ist {@code FINISHED} oder {@code ABANDONED}, {@code winner} nur bei {@code FINISHED}. */
     public static GameEvent gameFinished(UUID gameId, GamePhase phase, PlayerSide winner) {
-        return new GameEvent(GameEventType.GAME_FINISHED, gameId, null, null, null, null, null, null, phase, winner);
+        return new GameEvent(GameEventType.GAME_FINISHED, gameId, null, null, null, null, null, null, phase, winner,
+                null);
     }
 }

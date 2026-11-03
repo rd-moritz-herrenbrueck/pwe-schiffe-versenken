@@ -120,7 +120,7 @@ Gegen die KI startet die Lobby sofort. Die KI platziert ihre Flotte selbst und a
 | GET | `/api/lobbies/events` | SSE-Stream für die Lobby-Liste |
 
 Festlegungen (Phase 3):
-- `POST /api/lobbies` ohne `rules` nutzt die Standardregeln. Lobbys sind vorerst öffentlich; `visibility`, Einladungscode und `vsAi` folgen in Phase 6.
+- `POST /api/lobbies` ohne `rules` nutzt die Standardregeln. `visibility` (öffentlich/privat), Einladungscode und `vsAi` kamen in Phase 6 hinzu (siehe 3.9).
 - `POST /api/lobbies/join` erwartet `{ "gameId": … }`. `GET /api/lobbies` listet alle offenen öffentlichen Lobbys, auch eigene.
 - Spielaktionen antworten mit dem Spielzustand aus Sicht des Spielers (`GameView`), ein Schuss zusätzlich mit `result` und ggf. `sunkShip`.
 - `GameView` enthält eigenes Feld (Schiffe mit `sunk`, empfangene Schüsse) und gegnerisches Feld (eigene Schüsse mit `hit`, nur versenkte Schiffe). Nicht versenkte gegnerische Schiffe bleiben auch nach Spielende verborgen.
@@ -147,7 +147,7 @@ Festlegungen (Phase 4):
 - Reihenfolge je Aktion: Zweite Flotte → `FLEET_READY`, `GAME_STARTED`. Schuss → `SHOT`, dann `GAME_FINISHED` (bei `WIN`) oder `TURN_CHANGED` (wenn der Gegner an der Reihe ist, nicht bei Nochmal-Schießen nach Treffer). Aufgeben und verwaiste Spiele → `GAME_FINISHED`.
 - Ereignisse werden erst nach dem Speichern (Commit) veröffentlicht, abgelehnte Aktionen erzeugen keine. Es gibt keinen Replay und keine `Last-Event-ID`, nach einem Reconnect gilt der Zustand aus `GET`.
 - Lobby-Stream: `LOBBY_OPENED` (mit `lobby` wie in `GET /api/lobbies`) und `LOBBY_CLOSED` (`gameId`, bei Beitritt oder verwaister Lobby).
-- Der Bus blockiert nie bei langsamen Abonnenten (Puffer je Abonnent begrenzt, bei Überlauf endet nur dessen Stream, der Client verbindet neu) und meldet abgebrochene Streams sofort ab. Die Event-Endpunkte sind `@Blocking`, weil sie vor dem Streamen die DB nutzen. `CHAT` folgt mit dem Chat (Phase 6).
+- Der Bus blockiert nie bei langsamen Abonnenten (Puffer je Abonnent begrenzt, bei Überlauf endet nur dessen Stream, der Client verbindet neu) und meldet abgebrochene Streams sofort ab. Die Event-Endpunkte sind `@Blocking`, weil sie vor dem Streamen die DB nutzen.
 - Skalierung: Bei mehreren Backend-Instanzen müsste der Event-Bus durch Postgres `LISTEN/NOTIFY` oder einen Broker ersetzt werden. Für das Projekt reicht eine Instanz.
 
 ### 3.8 KI-Gegner
@@ -156,6 +156,39 @@ Festlegungen (Phase 4):
 - Schießen: Hunt/Target. Zufällig oder im Schachbrettmuster suchen, nach einem Treffer die Nachbarfelder verfolgen, bis das Schiff versenkt ist.
 - Die Strategie liegt hinter einem Interface (`AiStrategy`), damit stärkere Varianten ergänzt werden können.
 - Im Testprofil kann ein fester Seed gesetzt werden, damit die Spiele deterministisch sind.
+
+### 3.9 Festlegungen (Phase 6)
+
+Umgesetzt testgetrieben, die Tests schreiben diese Festlegungen fest.
+
+Private Lobby:
+- `POST /api/lobbies` akzeptiert `visibility` (`PUBLIC` Standard, `PRIVATE`). Bei `PRIVATE` enthält die Antwort (`GameView.inviteCode`) einen Einladungscode aus 8 Zeichen `A-Z0-9`, eindeutig (Spalte `invite_code`). Nur der Ersteller sieht ihn, der Beitretende nicht.
+- Private Lobbys stehen nicht in `GET /api/lobbies`, erzeugen kein `LOBBY_OPENED` und beim Beitritt kein `LOBBY_CLOSED`. Sie erscheinen in `GET /api/games` des Erstellers.
+- `POST /api/lobbies/join` erwartet `gameId` **oder** `inviteCode` (sonst `400 INVALID_REQUEST`). Der Code wird getrimmt und ohne Beachtung der Groß-/Kleinschreibung verglichen. Private Lobbys sind nicht per `gameId` beitretbar und unbekannte Codes liefern `404 GAME_NOT_FOUND` (Existenz wird nicht preisgegeben). Der Ersteller bekommt `409 CANNOT_JOIN_OWN_GAME`, ein bereits benutzter Code `409 WRONG_PHASE`.
+- Ungültige Regeln und unbekannte `visibility` werden mit `400` abgelehnt.
+
+Regelprüfung für das UI:
+- `POST /api/rules/check` (Token erforderlich) nimmt ein `RuleSet` und antwortet immer mit `200`: `{ "valid": true }` oder `{ "valid": false, "code", "message" }` (Codes wie beim Erstellen einer Lobby). Ohne Body `400 INVALID_REQUEST`. Der Client baut die Platzierungsprüfung nicht nach, sondern lässt nur Regeln zu, die der Server bestätigt hat.
+
+Chat:
+- `GET /api/games/{id}/chat` liefert den Verlauf aufsteigend nach Zeit, `POST /api/games/{id}/chat` (`{ "text" }`) speichert eine Nachricht und antwortet mit `201` und `{ id, side, nickname, text, createdAt }`. Beide Aufrufe nur mit Header-Token und nur für Beteiligte (`401`, sonst `404 GAME_NOT_FOUND`).
+- Der Text wird getrimmt und muss 1–500 Zeichen lang sein (`400 INVALID_REQUEST`), er wird unverändert gespeichert, das Escaping übernimmt das Frontend (Interpolation, kein HTML).
+- Senden ist in `PLACEMENT`, `RUNNING` und `FINISHED` möglich, in `WAITING` und `ABANDONED` antwortet der Server mit `409 WRONG_PHASE`. Lesen geht immer. Rate-Limiting folgt in Phase 8.
+- Jede gespeicherte Nachricht erzeugt im Spiel-Stream ein `CHAT`-Ereignis `{ type, gameId, message }` für beide Spieler (auch den Absender). Abgelehnte Nachrichten erzeugen keines.
+
+KI-Gegner:
+- `POST /api/lobbies` mit `vsAi: true` erstellt ein Spiel in `PLACEMENT` gegen Spieler B mit dem Nickname `KI`. Die KI hat ihre Flotte bereits platziert (`opponentFleetReady`), die Lobby ist nicht offen, hat keinen Einladungscode und lässt sich nicht beitreten. `visibility` wird ignoriert.
+- Der Mensch ist Spieler A und beginnt. Die KI schießt in derselben Anfrage zurück, solange sie am Zug ist, die Antwort enthält also schon ihre Schüsse. Bei `shootAgainOnHit` wartet die KI, solange der Mensch nochmal schießen darf. Ereignisse wie bei zwei Menschen (`SHOT`, `TURN_CHANGED`, …).
+- Domäne: `AiStrategy` (`placeFleet(rules)`, `nextShot(rules, shotsSoFar)`) hält keinen Zustand, der nächste Schuss ergibt sich aus der Schusshistorie. `HuntTargetStrategy(RandomGenerator)`: Suche zufällig, nach einem Treffer die Nachbarfelder, bei zwei Treffern in einer Reihe die Linie verlängern. Bei `shipsMayTouch = false` werden Felder rund um versenkte Schiffe nicht beschossen.
+- `game.ai.seed` (nur im Testprofil gesetzt): Mit Seed führen gleiche Eingaben des Menschen zu gleichen Flotten und Schüssen der KI, unabhängig von Spiel-ID und Reihenfolge der Spiele. Ohne Seed entscheidet der Zufall.
+
+Frontend:
+- `ApiService.createLobby({ rules?, visibility?, vsAi? })`, `joinByInviteCode`, `checkRules`, `listChat`, `sendChat`.
+- `LobbyListPage`: Schnellstart `play-vs-ai-button` (Standardregeln), `open-lobby-form-button` blendet `CreateLobbyForm` ein, `invite-code-input` und `join-by-code-button` zum Beitreten per Code.
+- `CreateLobbyForm`: Feldgröße (1–25, sonst ohne Serveranfrage abgelehnt), Flotte (Schiffe mit Länge ≥ 2 hinzufügen und entfernen), `shootAgainOnHit`, `shipsMayTouch`, privat und gegen KI. Die Standardregeln gelten ohne Anfrage als gültig. Jede Änderung löst eine Prüfung per `POST /api/rules/check` aus, nur die letzte zählt. Abschicken ist nur bei bestätigten Regeln möglich. Gegen die KI ist „privat“ nicht wählbar.
+- `GameStore`: `messages`, `unreadChat`, `loadChat()`, `sendChat(text)`, `setChatVisible(visible)`. `CHAT`-Ereignisse hängen die Nachricht an (ohne das Spiel neu zu laden, Duplikate per `id` ignoriert), nach einem Reconnect wird der Verlauf neu geladen, wenn er schon geladen war.
+- `GamePage`: Chat per `chat-toggle` ein- und ausblenden (nur in `PLACEMENT`, `RUNNING`, `FINISHED`), erst beim Öffnen wird der Verlauf geladen. `chat-unread` zählt Nachrichten des Gegners bei geschlossenem Chat. In `WAITING` zeigt `invite-code` den Einladungscode privater Lobbys.
+- `Chat`-Komponente: `chat-message-{id}` mit `data-own`, `chat-input` (max. 500 Zeichen, Enter sendet), `chat-send-button`.
 
 ## 4. Datenbank (PostgreSQL)
 

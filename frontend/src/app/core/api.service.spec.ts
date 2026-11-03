@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { DEFAULT_RULES, GAME_ID, gameView } from '../testing/fixtures';
+import { DEFAULT_RULES, GAME_ID, chatMessage, gameView } from '../testing/fixtures';
 import { ApiService } from './api.service';
 
 describe('ApiService', () => {
@@ -48,7 +48,7 @@ describe('ApiService', () => {
   });
 
   it('createsLobbyWithGivenRules', () => {
-    api.createLobby(DEFAULT_RULES).subscribe();
+    api.createLobby({ rules: DEFAULT_RULES }).subscribe();
 
     const request = http.expectOne('/api/lobbies');
     expect(request.request.body).toEqual({ rules: DEFAULT_RULES });
@@ -106,5 +106,66 @@ describe('ApiService', () => {
     const request = http.expectOne(`/api/games/${GAME_ID}/resign`);
     expect(request.request.method).toBe('POST');
     request.flush(gameView());
+  });
+
+  describe('lobbyOptions', () => {
+    it('createsPrivateLobbyWithRulesAndVisibility', () => {
+      api.createLobby({ rules: DEFAULT_RULES, visibility: 'PRIVATE' }).subscribe();
+
+      const request = http.expectOne('/api/lobbies');
+      expect(request.request.body).toEqual({ rules: DEFAULT_RULES, visibility: 'PRIVATE' });
+      request.flush(gameView({ phase: 'WAITING', inviteCode: 'ABCD2345' }));
+    });
+
+    it('createsGameAgainstAi', () => {
+      api.createLobby({ vsAi: true }).subscribe();
+
+      const request = http.expectOne('/api/lobbies');
+      expect(request.request.body).toEqual({ vsAi: true });
+      request.flush(gameView({ phase: 'PLACEMENT' }));
+    });
+
+    it('joinsLobbyByInviteCode', () => {
+      api.joinByInviteCode('ABCD2345').subscribe();
+
+      const request = http.expectOne('/api/lobbies/join');
+      expect(request.request.method).toBe('POST');
+      expect(request.request.body).toEqual({ inviteCode: 'ABCD2345' });
+      request.flush(gameView({ phase: 'PLACEMENT' }));
+    });
+
+    it('checksRulesOnServer', () => {
+      let result: unknown;
+      api.checkRules(DEFAULT_RULES).subscribe((check) => (result = check));
+
+      const request = http.expectOne('/api/rules/check');
+      expect(request.request.method).toBe('POST');
+      expect(request.request.body).toEqual(DEFAULT_RULES);
+      request.flush({ valid: false, code: 'FLEET_DOES_NOT_FIT', message: 'passt nicht' });
+      expect(result).toEqual({ valid: false, code: 'FLEET_DOES_NOT_FIT', message: 'passt nicht' });
+    });
+  });
+
+  describe('chat', () => {
+    it('listsChatHistoryOfGame', () => {
+      let result: unknown;
+      api.listChat(GAME_ID).subscribe((messages) => (result = messages));
+
+      const request = http.expectOne(`/api/games/${GAME_ID}/chat`);
+      expect(request.request.method).toBe('GET');
+      request.flush([chatMessage({ id: 'm1' })]);
+      expect(result).toEqual([chatMessage({ id: 'm1' })]);
+    });
+
+    it('sendsChatMessage', () => {
+      let result: unknown;
+      api.sendChat(GAME_ID, 'Hallo').subscribe((message) => (result = message));
+
+      const request = http.expectOne(`/api/games/${GAME_ID}/chat`);
+      expect(request.request.method).toBe('POST');
+      expect(request.request.body).toEqual({ text: 'Hallo' });
+      request.flush(chatMessage({ id: 'm1', text: 'Hallo' }));
+      expect(result).toEqual(chatMessage({ id: 'm1', text: 'Hallo' }));
+    });
   });
 });

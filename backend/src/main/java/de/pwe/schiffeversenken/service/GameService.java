@@ -17,6 +17,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -42,6 +43,9 @@ public class GameService {
 
     @Inject
     EventPublisher events;
+
+    @Inject
+    AiOpponent ai;
 
     @ConfigProperty(name = "game.abandon.inactive-after")
     Duration abandonInactiveAfter;
@@ -82,12 +86,20 @@ public class GameService {
         return placed;
     }
 
+    /** Schuss des Spielers. Gegen die KI schießt diese in derselben Transaktion zurück. */
     @Transactional
     public FireResult fire(UUID playerId, UUID gameId, Coordinate target) {
-        Acted acted = act(playerId, gameId, (game, side) -> game.fire(side, target));
-        events.publishGameEvents(GameEvents.afterShot(gameId, acted.game().viewer(), acted.outcome(),
-                acted.game().game()));
-        return new FireResult(acted.outcome(), acted.game());
+        GameEntity entity = access.loadAsParticipant(playerId, gameId);
+        PlayerSide side = GameAccess.sideOf(entity, playerId);
+        Game game = mapper.read(entity);
+        ShotOutcome outcome = game.fire(side, target);
+        List<GameEvent> published = new ArrayList<>(GameEvents.afterShot(gameId, side, outcome, game));
+        if (entity.aiOpponent) {
+            published.addAll(ai.respond(gameId, game));
+        }
+        access.save(entity, game);
+        events.publishGameEvents(published);
+        return new FireResult(outcome, access.view(entity, side, game));
     }
 
     @Transactional

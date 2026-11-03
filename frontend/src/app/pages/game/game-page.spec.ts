@@ -2,9 +2,9 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { GameView } from '../../core/models';
+import { ChatMessage, GameView } from '../../core/models';
 import { PlayerService } from '../../core/player.service';
-import { GAME_ID, gameView, rules } from '../../testing/fixtures';
+import { GAME_ID, chatMessage, gameView, rules } from '../../testing/fixtures';
 import { FakeEventSources, fakeEventSources } from '../../testing/fake-event-source';
 import { GamePage } from './game-page';
 
@@ -469,6 +469,177 @@ describe('GamePage', () => {
 
       expect(byId('resign-confirm-button')).toBeNull();
       http.expectNone(`${gameUrl}/resign`);
+    });
+  });
+
+  describe('inviteCode', () => {
+    const waiting = (inviteCode: string | null) =>
+      gameView({
+        phase: 'WAITING',
+        opponentNickname: null,
+        yourFleetReady: false,
+        opponentFleetReady: false,
+        inviteCode,
+      });
+
+    it('showsTheInviteCodeOfAPrivateLobbyWhileWaiting', async () => {
+      await render(waiting('ABCD2345'));
+
+      expect(byId('invite-code')?.textContent).toContain('ABCD2345');
+    });
+
+    it('showsNoInviteCodeForPublicLobbies', async () => {
+      await render(waiting(null));
+
+      expect(byId('invite-code')).toBeNull();
+    });
+
+    it('hidesTheInviteCodeOnceTheOpponentHasJoined', async () => {
+      await render(waiting('ABCD2345'));
+
+      sources.latest().emit('PLAYER_JOINED', { gameId: GAME_ID, nickname: 'Ben' });
+      http
+        .expectOne(gameUrl)
+        .flush(gameView({ phase: 'PLACEMENT', yourFleetReady: false, inviteCode: 'ABCD2345' }));
+      await fixture.whenStable();
+
+      expect(byId('invite-code')).toBeNull();
+    });
+  });
+
+  describe('chat', () => {
+    const chatUrl = `${gameUrl}/chat`;
+    const fromOpponent = chatMessage({ id: 'm1', side: 'B', nickname: 'Ben', text: 'Viel Glück!' });
+    const mine = chatMessage({ id: 'm2', side: 'A', nickname: 'Anna', text: 'Dir auch' });
+
+    async function openChat(history: ChatMessage[] = []): Promise<void> {
+      await click(byId('chat-toggle'));
+      http.expectOne(chatUrl).flush(history);
+      await fixture.whenStable();
+    }
+
+    it.each(['PLACEMENT', 'RUNNING', 'FINISHED'] as const)(
+      'offersTheChatInPhase%s',
+      async (phase) => {
+        await render(
+          gameView({ phase, yourFleetReady: false, result: phase === 'FINISHED' ? 'WON' : null }),
+        );
+
+        expect(byId('chat-toggle')).not.toBeNull();
+      },
+    );
+
+    it.each(['WAITING', 'ABANDONED'] as const)('offersNoChatInPhase%s', async (phase) => {
+      await render(gameView({ phase, opponentNickname: null }));
+
+      expect(byId('chat-toggle')).toBeNull();
+    });
+
+    it('keepsTheChatClosedAndUnloadedByDefault', async () => {
+      await render(gameView());
+
+      expect(byId('chat')).toBeNull();
+      http.expectNone(chatUrl);
+    });
+
+    it('loadsAndShowsTheHistoryWhenOpened', async () => {
+      await render(gameView());
+
+      await openChat([fromOpponent, mine]);
+
+      expect(byId('chat')).not.toBeNull();
+      expect(byId('chat-message-m1')?.textContent).toContain('Viel Glück!');
+      expect(byId('chat-message-m2')?.getAttribute('data-own')).toBe('true');
+    });
+
+    it('hidesTheChatAgainOnToggle', async () => {
+      await render(gameView());
+      await openChat();
+
+      await click(byId('chat-toggle'));
+
+      expect(byId('chat')).toBeNull();
+    });
+
+    it('sendsTheTypedTextAndShowsTheStoredMessage', async () => {
+      await render(gameView());
+      await openChat();
+      const input = byId('chat-input') as HTMLInputElement;
+      input.value = 'Dir auch';
+      input.dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+
+      await click(byId('chat-send-button'));
+
+      const request = http.expectOne(chatUrl);
+      expect(request.request.method).toBe('POST');
+      expect(request.request.body).toEqual({ text: 'Dir auch' });
+      request.flush(mine);
+      await fixture.whenStable();
+      expect(byId('chat-message-m2')).not.toBeNull();
+    });
+
+    it('showsMessagesOfTheOpponentLiveWhileOpen', async () => {
+      await render(gameView());
+      await openChat();
+
+      sources.latest().emit('CHAT', { gameId: GAME_ID, message: fromOpponent });
+      await fixture.whenStable();
+
+      http.expectNone(gameUrl);
+      expect(byId('chat-message-m1')).not.toBeNull();
+    });
+
+    it('showsServerRejectionOfAMessage', async () => {
+      await render(gameView());
+      await openChat();
+      const input = byId('chat-input') as HTMLInputElement;
+      input.value = 'Hallo';
+      input.dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+
+      await click(byId('chat-send-button'));
+
+      http
+        .expectOne(chatUrl)
+        .flush(
+          { code: 'WRONG_PHASE', message: 'Chat nicht möglich' },
+          { status: 409, statusText: 'Conflict' },
+        );
+      await fixture.whenStable();
+      expect(byId('error-message')?.textContent).toContain('Chat nicht möglich');
+    });
+
+    describe('unreadIndicator', () => {
+      beforeEach(() => render(gameView()));
+
+      it('showsNoIndicatorInitially', () => {
+        expect(byId('chat-unread')).toBeNull();
+      });
+
+      it('countsMessagesOfTheOpponentWhileTheChatIsClosed', async () => {
+        sources.latest().emit('CHAT', { gameId: GAME_ID, message: fromOpponent });
+        sources.latest().emit('CHAT', { gameId: GAME_ID, message: { ...fromOpponent, id: 'm3' } });
+        await fixture.whenStable();
+
+        expect(byId('chat-unread')?.textContent?.trim()).toBe('2');
+      });
+
+      it('ignoresOwnMessages', async () => {
+        sources.latest().emit('CHAT', { gameId: GAME_ID, message: mine });
+        await fixture.whenStable();
+
+        expect(byId('chat-unread')).toBeNull();
+      });
+
+      it('disappearsWhenTheChatIsOpened', async () => {
+        sources.latest().emit('CHAT', { gameId: GAME_ID, message: fromOpponent });
+        await fixture.whenStable();
+
+        await openChat([fromOpponent]);
+
+        expect(byId('chat-unread')).toBeNull();
+      });
     });
   });
 });

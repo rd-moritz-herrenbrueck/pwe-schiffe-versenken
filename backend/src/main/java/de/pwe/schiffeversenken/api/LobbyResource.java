@@ -11,6 +11,7 @@ import de.pwe.schiffeversenken.service.ErrorCode;
 import de.pwe.schiffeversenken.service.GameEventBus;
 import de.pwe.schiffeversenken.service.LobbyService;
 import de.pwe.schiffeversenken.service.PlayerGame;
+import de.pwe.schiffeversenken.persistence.Visibility;
 import de.pwe.schiffeversenken.service.ServiceException;
 import io.smallrye.common.annotation.Blocking;
 import io.smallrye.mutiny.Multi;
@@ -27,6 +28,7 @@ import org.jboss.resteasy.reactive.ResponseStatus;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Path("/api/lobbies")
 public class LobbyResource {
@@ -52,21 +54,34 @@ public class LobbyResource {
                 .toList();
     }
 
-    /** Erstellt eine öffentliche Lobby. Ohne Regeln gelten die Standardregeln. */
+    /**
+     * Erstellt eine Lobby, öffentlich oder privat mit Einladungscode, oder ein Spiel gegen die KI. Ohne Regeln gelten
+     * die Standardregeln.
+     */
     @POST
     @ResponseStatus(201)
     public GameView create(CreateLobbyRequest request) {
-        RuleSet rules = request == null || request.rules() == null ? RuleSet.standard() : request.rules().toDomain();
-        return toView(lobbyService.create(currentPlayer.require().id(), rules));
+        UUID playerId = currentPlayer.require().id();
+        if (request == null) {
+            return toView(lobbyService.create(playerId, RuleSet.standard()));
+        }
+        Visibility visibility = parseVisibility(request.visibility());
+        RuleSet rules = request.rules() == null ? RuleSet.standard() : request.rules().toDomain();
+        return toView(lobbyService.create(playerId, rules, visibility, Boolean.TRUE.equals(request.vsAi())));
     }
 
+    /** Tritt per Spiel-ID (öffentliche Lobby) oder per Einladungscode (private Lobby) bei. */
     @POST
     @Path("/join")
     public GameView join(JoinLobbyRequest request) {
-        if (request == null || request.gameId() == null) {
-            throw new ServiceException(ErrorCode.INVALID_REQUEST, "gameId fehlt");
+        UUID playerId = currentPlayer.require().id();
+        if (request != null && request.gameId() != null) {
+            return toView(lobbyService.join(playerId, request.gameId()));
         }
-        return toView(lobbyService.join(currentPlayer.require().id(), request.gameId()));
+        if (request != null && request.inviteCode() != null) {
+            return toView(lobbyService.joinByInviteCode(playerId, request.inviteCode()));
+        }
+        throw new ServiceException(ErrorCode.INVALID_REQUEST, "gameId oder inviteCode fehlt");
     }
 
     /** Änderungen der Liste offener Lobbys als Server-Sent Events, siehe {@link EventStreams}. */
@@ -81,7 +96,19 @@ public class LobbyResource {
                         LobbyEventDto.from(event))));
     }
 
+    private static Visibility parseVisibility(String value) {
+        if (value == null) {
+            return Visibility.PUBLIC;
+        }
+        try {
+            return Visibility.valueOf(value);
+        } catch (IllegalArgumentException e) {
+            throw new ServiceException(ErrorCode.INVALID_REQUEST, "visibility muss PUBLIC oder PRIVATE sein");
+        }
+    }
+
     private static GameView toView(PlayerGame game) {
-        return GameViewMapper.toView(game.id(), game.viewer(), game.opponentNickname(), game.game());
+        return GameViewMapper.toView(game.id(), game.viewer(), game.opponentNickname(), game.inviteCode(),
+                game.game());
     }
 }

@@ -17,6 +17,7 @@ export const appConfig: ApplicationConfig = {
         preset: Aura,
         options: { darkModeSelector: `.${DARK_MODE_CLASS}` },
       },
+      license: 'eyJpZCI6IjIwZDJkYzJiLTE1MTQtNDc5Mi1hMWMzLTlmOGNjZGY2MWYwZCIsInByb2R1Y3QiOiJwcmltZXVpIiwidGllciI6ImNvbW11bml0eSIsInR5cGUiOiJkZXYiLCJpYXQiOjE3OTM3MTczNTAsImV4cCI6MTgyNTI1MzM1MH0.YeyrdeUFZDkvRXrFlhb2PyR3nH8uxVWHUw0fvmLsrd-tYxT1fIs8fwAyB7lL5dZLOUm6J_0Zy8jtokjfqY0IAA'
     }),
   ],
 };

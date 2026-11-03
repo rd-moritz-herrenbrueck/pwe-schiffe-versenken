@@ -207,4 +207,133 @@ describe('LobbyListPage', () => {
       expect(sources.open()).toEqual([]);
     });
   });
+
+  describe('createWithOptions', () => {
+    it('hidesTheFormUntilRequested', async () => {
+      await render();
+
+      expect(byId('create-lobby-form')).toBeNull();
+    });
+
+    it('showsTheFormOnRequestAndHidesItAgain', async () => {
+      await render();
+
+      byId('open-lobby-form-button')!.click();
+      await fixture.whenStable();
+      expect(byId('create-lobby-form')).not.toBeNull();
+
+      byId('open-lobby-form-button')!.click();
+      await fixture.whenStable();
+      expect(byId('create-lobby-form')).toBeNull();
+    });
+
+    it('createsPrivateLobbyWithChosenOptionsAndOpensGame', async () => {
+      await render();
+      byId('open-lobby-form-button')!.click();
+      await fixture.whenStable();
+      byId('visibility-private')!.click();
+      await fixture.whenStable();
+
+      byId('create-submit-button')!.click();
+      await fixture.whenStable();
+
+      const request = http.expectOne((r) => r.url === '/api/lobbies' && r.method === 'POST');
+      expect(request.request.body).toEqual({
+        rules: rules(),
+        visibility: 'PRIVATE',
+        vsAi: false,
+      });
+      request.flush(gameView({ id: 'private-game', phase: 'WAITING', inviteCode: 'ABCD2345' }));
+      await fixture.whenStable();
+      expect(TestBed.inject(Router).url).toBe('/games/private-game');
+    });
+
+    it('showsRejectionOfTheServerAndKeepsTheForm', async () => {
+      await render();
+      byId('open-lobby-form-button')!.click();
+      await fixture.whenStable();
+      byId('create-submit-button')!.click();
+      await fixture.whenStable();
+
+      http
+        .expectOne((r) => r.url === '/api/lobbies' && r.method === 'POST')
+        .flush(
+          { code: 'INVALID_RULE_SET', message: 'Regeln ungültig' },
+          { status: 400, statusText: 'Bad Request' },
+        );
+      await fixture.whenStable();
+
+      expect(byId('error-message')?.textContent).toContain('Regeln ungültig');
+      expect(byId('create-lobby-form')).not.toBeNull();
+      expect(TestBed.inject(Router).url).toBe('/');
+    });
+  });
+
+  describe('playAgainstAi', () => {
+    it('createsGameAgainstAiWithStandardRulesAndOpensGame', async () => {
+      await render();
+
+      byId('play-vs-ai-button')!.click();
+      await fixture.whenStable();
+
+      const request = http.expectOne((r) => r.url === '/api/lobbies' && r.method === 'POST');
+      expect(request.request.body.vsAi).toBe(true);
+      expect(request.request.body.rules ?? null).toBeNull();
+      request.flush(gameView({ id: 'ai-game', phase: 'PLACEMENT', opponentNickname: 'KI' }));
+      await fixture.whenStable();
+      expect(TestBed.inject(Router).url).toBe('/games/ai-game');
+    });
+  });
+
+  describe('joinByInviteCode', () => {
+    const codeInput = () => byId('invite-code-input') as HTMLInputElement;
+    const joinButton = () => byId('join-by-code-button') as HTMLButtonElement;
+
+    async function enter(code: string): Promise<void> {
+      codeInput().value = code;
+      codeInput().dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+    }
+
+    it('cannotJoinWithoutCode', async () => {
+      await render();
+
+      expect(joinButton().disabled).toBe(true);
+
+      await enter('   ');
+      expect(joinButton().disabled).toBe(true);
+    });
+
+    it('joinsWithTrimmedCodeAndOpensGame', async () => {
+      await render();
+      await enter('  ABCD2345 ');
+
+      joinButton().click();
+      await fixture.whenStable();
+
+      const request = http.expectOne('/api/lobbies/join');
+      expect(request.request.body).toEqual({ inviteCode: 'ABCD2345' });
+      request.flush(gameView({ id: 'private-game', phase: 'PLACEMENT' }));
+      await fixture.whenStable();
+      expect(TestBed.inject(Router).url).toBe('/games/private-game');
+    });
+
+    it('showsRejectionForUnknownCodeAndStaysOnLobbyList', async () => {
+      await render();
+      await enter('ZZZZZZZZ');
+
+      joinButton().click();
+      await fixture.whenStable();
+
+      http
+        .expectOne('/api/lobbies/join')
+        .flush(
+          { code: 'GAME_NOT_FOUND', message: 'Spiel nicht gefunden' },
+          { status: 404, statusText: 'Not Found' },
+        );
+      await fixture.whenStable();
+      expect(byId('error-message')?.textContent).toContain('Spiel nicht gefunden');
+      expect(TestBed.inject(Router).url).toBe('/');
+    });
+  });
 });

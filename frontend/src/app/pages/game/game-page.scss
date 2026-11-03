@@ -34,3 +34,17 @@
     font-size: 1rem;
   }
 }
+
+.chat-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.invite-code {
+  font-family: var(--p-font-family, monospace);
+  font-size: 1.25rem;
+  letter-spacing: 0.15em;
+  user-select: all;
+}

@@ -66,11 +66,15 @@ Legende: `[ ]` offen · `[x]` erledigt · *(optional)* = Nice-to-have
 - [x] Frontend außerhalb der Sandbox im Browser gegen das laufende Backend prüfen (`docker compose up -d db`, `./mvnw quarkus:dev`, `npm start`; zwei Browser-Contexts, Hell-/Dunkelmodus)
 
 ## Phase 6: Erweiterungen
-- [ ] Einstellbare Regeln, Feldgrößen (max. 25x25) und Schiffslängen im UI, nur platzierbare Flotten auswählbar *(optional)*
-- [ ] Private Lobby mit Einladungscode *(optional)*
-- [ ] Chat (Backend, SSE, UI)
-- [ ] KI-Gegner (zufällige Platzierung, Hunt/Target), „gegen KI spielen“ im UI
-- [ ] Fester KI-Seed im Testprofil
+- [x] Tests für die offenen Punkte vorab geschrieben (TDD, rot) und Skelette angelegt (`AiStrategy`/`HuntTargetStrategy`, `Chat`, `CreateLobbyForm`, API-/Store-Methoden)
+- [x] Abnahme der Tests
+- [x] Einstellbare Regeln, Feldgrößen (max. 25x25) und Schiffslängen im UI, nur platzierbare Flotten auswählbar *(optional)*; dafür Endpunkt `POST /api/rules/check`
+- [x] Private Lobby mit Einladungscode *(optional)*
+- [x] Chat (Backend, SSE, UI)
+- [x] KI-Gegner (zufällige Platzierung, Hunt/Target), „gegen KI spielen“ im UI
+- [x] Fester KI-Seed im Testprofil (`%test.game.ai.seed`, gleiche Eingaben ergeben gleiche KI-Flotten und -Schüsse)
+- [x] Integrationstests der Phase 6 außerhalb der Sandbox mit Docker ausführen (`cd backend && ./mvnw verify`)
+- [x] Phase-6-Funktionen außerhalb der Sandbox im Browser prüfen (privat per Code beitreten mit zwei Browser-Contexts, Chat, Spiel gegen die KI, Regelformular, Hell-/Dunkelmodus)
 - [x] CI/CD-Konzept mit GitHub Actions und IONOS-VPS abgestimmt (vorgezogen, siehe `docs/Deployment.md`)
 - [x] Dockerfiles für Backend und Frontend (nginx mit `/api`-Proxy, SSE ohne Buffering), vorgezogen aus Phase 7
 - [x] CI-Workflow `ci.yml`: `mvnw verify` (inkl. Testcontainers), Frontend-Tests und -Build bei PR und Push auf `main`
@@ -96,3 +100,4 @@ Legende: `[ ]` offen · `[x]` erledigt · *(optional)* = Nice-to-have
 - [ ] Playwright-E2E in die CI aufnehmen *(optional)*
 - [ ] README mit realen Start- und Testbefehlen aktualisieren
 - [ ] Feinschliff (Fehlermeldungen, Responsive Design, Rate-Limiting für Chat)
+- [ ] UI Optimierung des Schiffe platzieren: Bessere Visualisierung beim Drag & Drop
