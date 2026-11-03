@@ -1,0 +1,45 @@
+:host {
+  display: block;
+}
+
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-height: 14rem;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.message {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--p-content-border-radius, 6px);
+  background: var(--p-content-hover-background);
+  overflow-wrap: anywhere;
+
+  &[data-own='true'] {
+    background: var(--p-highlight-background);
+    color: var(--p-highlight-color);
+  }
+}
+
+.sender {
+  font-weight: 600;
+}
+
+.empty {
+  color: var(--p-text-muted-color);
+}
+
+.compose {
+  display: flex;
+  gap: 0.5rem;
+
+  input {
+    flex: 1;
+  }
+}
