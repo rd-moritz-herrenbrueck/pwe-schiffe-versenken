@@ -1,0 +1,54 @@
+# Produktionsbetrieb auf dem VPS. Wird vom Workflow `deploy.yml` nach DEPLOY_PATH/docker-compose.yml kopiert,
+# die Werte in .env schreibt der Workflow aus GitHub-Variables/-Secrets (siehe docs/Deployment.md).
+name: schiffeversenken
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-schiffe}
+      POSTGRES_USER: ${POSTGRES_USER:-schiffe}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    image: ${IMAGE_PREFIX:?IMAGE_PREFIX fehlt}/backend:${IMAGE_TAG:?IMAGE_TAG fehlt}
+    restart: unless-stopped
+    environment:
+      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-schiffe}
+      QUARKUS_DATASOURCE_USERNAME: ${POSTGRES_USER:-schiffe}
+      QUARKUS_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/q/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  frontend:
+    image: ${IMAGE_PREFIX}/frontend:${IMAGE_TAG}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    # Nur lokal erreichbar, TLS und Domain übernimmt der Reverse-Proxy des VPS.
+    ports:
+      - "127.0.0.1:${APP_PORT:-8081}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+volumes:
+  db-data:

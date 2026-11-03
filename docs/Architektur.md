@@ -221,6 +221,16 @@ E2E-Szenarien:
 - Der Reverse-Proxy im `frontend`-Container vermeidet CORS-Probleme. SSE braucht deaktiviertes Proxy-Buffering.
 - Für lokale Entwicklung startet nur `db` per Compose, Backend und Frontend laufen im Dev-Modus.
 
+### 7.1 CI/CD und Produktion
+
+Details und Einrichtung: [`Deployment.md`](Deployment.md).
+
+- **CI** (`.github/workflows/ci.yml`): bei PR und Push auf `main`. Backend `./mvnw verify` inklusive `*IntegrationTest` (Testcontainers auf dem GitHub-Runner), Frontend `npm test` und `npm run build`.
+- **CD** (`.github/workflows/deploy.yml`): bei Tag `v*` zuerst die CI, dann werden die Images `backend` und `frontend` in GitHub Actions gebaut und nach GHCR gepusht (Tag = Git-Tag sowie `latest`). Anschließend per SSH auf den IONOS-VPS: `docker-compose.prod.yml` und `.env` übertragen, `docker compose pull` und `up -d --wait` ausführen, Smoke-Test über die Domain. Ein Rollback rollt per `workflow_dispatch` ein vorhandenes Tag aus.
+- **Zugangsdaten:** Host, User, Port, Domain und Pfade liegen als GitHub-**Variables** im Environment `production`. SSH-Key, `known_hosts` und DB-Passwort liegen als **Secrets**, weil Variables im Klartext sichtbar sind. GHCR nutzt `GITHUB_TOKEN`.
+- **VPS:** Auf den Ports 80/443 läuft bereits ein Reverse-Proxy (Supabase). Der Stack bindet daher nur `127.0.0.1:APP_PORT` (Standard 8081), und der vorhandene Proxy terminiert TLS für `moritzherrenbrueck.de`. Postgres ist nicht von außen erreichbar.
+- Flyway migriert beim Start des Backends (`quarkus.flyway.migrate-at-start`). Migrationen werden bei einem Rollback nicht zurückgedreht und sollten daher abwärtskompatibel sein.
+
 ## 8. Offene Punkte und Risiken
 
 - SSE hinter Proxys: Buffering und Timeouts beachten, Heartbeats senden.

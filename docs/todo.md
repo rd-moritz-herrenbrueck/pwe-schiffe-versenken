@@ -63,6 +63,14 @@ Legende: `[ ]` offen · `[x]` erledigt · *(optional)* = Nice-to-have
 - [ ] Chat (Backend, SSE, UI)
 - [ ] KI-Gegner (zufällige Platzierung, Hunt/Target), „gegen KI spielen“ im UI
 - [ ] Fester KI-Seed im Testprofil
+- [x] CI/CD-Konzept mit GitHub Actions und IONOS-VPS abgestimmt (vorgezogen, siehe `docs/Deployment.md`)
+- [x] Dockerfiles für Backend und Frontend (nginx mit `/api`-Proxy, SSE ohne Buffering), vorgezogen aus Phase 7
+- [x] CI-Workflow `ci.yml`: `mvnw verify` (inkl. Testcontainers), Frontend-Tests und -Build bei PR und Push auf `main`
+- [x] Deploy-Workflow `deploy.yml`: bei Tag `v*` Images nach GHCR, per SSH auf den VPS ausrollen, Rollback per `workflow_dispatch`
+- [x] `docker-compose.prod.yml` (nur `127.0.0.1:APP_PORT` nach außen, Postgres nicht erreichbar)
+- [ ] GitHub-Environment `production` mit Variables und Secrets anlegen
+- [ ] VPS einrichten: Deploy-User, SSH-Key, vHost für `moritzherrenbrueck.de` im vorhandenen Reverse-Proxy, Backup per Cron
+- [ ] Erstes Release-Tag ausrollen (setzt grüne Tests aus Phase 3 voraus)
 
 ## Phase 7: E2E und Docker
 - [ ] Playwright einrichten (`frontend/e2e/`, `playwright.config.ts`)
@@ -71,11 +79,12 @@ Legende: `[ ]` offen · `[x]` erledigt · *(optional)* = Nice-to-have
 - [ ] E2E: Reload mitten im Spiel
 - [ ] E2E: Spiel gegen KI
 - [ ] E2E: Chat
-- [ ] Dockerfiles für Backend und Frontend (nginx mit `/api`-Proxy, SSE ohne Buffering)
+- [x] Dockerfiles für Backend und Frontend (vorgezogen in Phase 6)
 - [ ] `docker compose up` startet den gesamten Stack
 - [ ] Testprofil mit leerer Datenbank für E2E
 
 ## Phase 8: Abschluss
-- [ ] CI-Pipeline (GitHub Actions): `mvn verify`, Frontend-Tests, Playwright *(optional)*
+- [x] CI-Pipeline (GitHub Actions): `mvn verify`, Frontend-Tests (vorgezogen in Phase 6)
+- [ ] Playwright-E2E in die CI aufnehmen *(optional)*
 - [ ] README mit realen Start- und Testbefehlen aktualisieren
 - [ ] Feinschliff (Fehlermeldungen, Responsive Design, Rate-Limiting für Chat)

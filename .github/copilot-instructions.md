@@ -32,7 +32,10 @@ docs/
   Architektur.md      Architekturbeschreibung
   todo.md             Aufgabenliste / Roadmap
   ai-journal.md       Dokumentation der KI-gestützten Arbeit
+  Deployment.md       CI/CD, GitHub-Variables/-Secrets, VPS-Einrichtung
 docker-compose.yml    Postgres + Backend + Frontend
+docker-compose.prod.yml  Produktions-Stack (VPS)
+.github/workflows/    ci.yml (Tests), deploy.yml (GHCR + SSH-Deploy auf IONOS-VPS)
 ```
 
 ## Bevorzugte Arbeitsweise: Test-Driven Development (TDD)
@@ -186,7 +189,7 @@ Keine festen Werte wie `10` oder feste Flotten im Code: Feldgröße und Flotte i
 ## Sicherheit
 
 - Eingaben serverseitig validieren, Längenbegrenzung und Rate-Limiting für Chat und Nicknames.
-- Keine Geheimnisse ins Repository einchecken.
+- Keine Geheimnisse ins Repository einchecken. Für das Deployment stehen Zugangsdaten (SSH-Key, Passwörter) in GitHub-**Secrets**, nicht geheime Werte (Host, User, Domain) in GitHub-**Variables**.
 - Build-Artefakte und IDE-Dateien (`target/`, `node_modules/`, `.idea/`) nicht committen.
 
 ## Dokumentation pflegen

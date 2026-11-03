@@ -13,6 +13,9 @@ node_modules/
 *.ipr
 *.iws
 .vscode/
+*.swp
+*.swo
+*~
 
 # Lokale Umgebung
 .env

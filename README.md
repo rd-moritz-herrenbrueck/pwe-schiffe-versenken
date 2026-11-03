@@ -46,6 +46,8 @@ docs/
   todo.md             Aufgabenliste / Roadmap
   ai-journal.md       Dokumentation der KI-gestützten Arbeit
 docker-compose.yml    Postgres (Backend + Frontend ab Phase 7)
+docker-compose.prod.yml  Produktions-Stack auf dem VPS
+.github/workflows/    CI (ci.yml) und Deployment (deploy.yml)
 ```
 
 ## Entwicklung
@@ -78,7 +80,16 @@ docker compose up --build            # Gesamter Stack, Frontend: http://localhos
 cd frontend && npx playwright test   # E2E-Tests gegen den Docker-Compose-Stack
 ```
 
+## Deployment
+
+Pull Requests und Pushes auf `main` laufen durch die CI. Ein Tag `v*` baut die Images, pusht sie nach GHCR und rollt sie auf dem IONOS-VPS aus (siehe [Deployment](docs/Deployment.md)):
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
 ## Dokumentation
 
 - [Architektur](docs/Architektur.md)
 - [Aufgabenliste](docs/todo.md)
+- [CI/CD und Deployment](docs/Deployment.md)
