@@ -39,13 +39,15 @@ Legende: `[ ]` offen · `[x]` erledigt · *(optional)* = Nice-to-have
 - [x] Liste eigener Spiele, Fortsetzen
 - [x] Integrationstests (`@QuarkusTest`, Testcontainers, REST Assured) geschrieben
 - [x] Job für verwaiste Spiele (`ABANDONED`)
-- [ ] Integrationstests außerhalb der Sandbox mit Docker ausführen (`cd backend && ./mvnw verify`)
+- [x] Integrationstests außerhalb der Sandbox mit Docker ausführen (`cd backend && ./mvnw verify`)
 
 ## Phase 4: Echtzeit (SSE)
-- [ ] Event-Bus (In-Memory) und Spiel-Events
-- [ ] SSE-Endpunkt `/api/games/{id}/events` inkl. Heartbeat
-- [ ] SSE-Endpunkt für die Lobby-Liste
-- [ ] Integrationstests für SSE
+- [x] Tests vorab geschrieben (TDD, rot) und Skelette angelegt
+- [x] Abnahme der Tests
+- [x] Event-Bus (In-Memory) und Spiel-Events
+- [x] SSE-Endpunkt `/api/games/{id}/events` inkl. Heartbeat
+- [x] SSE-Endpunkt für die Lobby-Liste
+- [ ] Integrationstests für SSE außerhalb der Sandbox mit Docker ausführen (`cd backend && ./mvnw verify`)
 
 ## Phase 5: Frontend
 - [ ] `PlayerService` (Token im localStorage), `ApiService`, `EventService`, `GameStore`

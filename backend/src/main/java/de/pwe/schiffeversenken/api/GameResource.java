@@ -1,5 +1,6 @@
 package de.pwe.schiffeversenken.api;
 
+import de.pwe.schiffeversenken.api.dto.GameEventDto;
 import de.pwe.schiffeversenken.api.dto.GameResult;
 import de.pwe.schiffeversenken.api.dto.GameSummary;
 import de.pwe.schiffeversenken.api.dto.GameView;
@@ -10,18 +11,27 @@ import de.pwe.schiffeversenken.api.dto.ShotResponse;
 import de.pwe.schiffeversenken.domain.Coordinate;
 import de.pwe.schiffeversenken.service.ErrorCode;
 import de.pwe.schiffeversenken.service.FireResult;
+import de.pwe.schiffeversenken.service.GameEventBus;
 import de.pwe.schiffeversenken.service.GameService;
 import de.pwe.schiffeversenken.service.OwnGame;
 import de.pwe.schiffeversenken.service.PlayerGame;
 import de.pwe.schiffeversenken.service.ServiceException;
+import io.smallrye.common.annotation.Blocking;
+import io.smallrye.mutiny.Multi;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.sse.OutboundSseEvent;
+import jakarta.ws.rs.sse.Sse;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -33,6 +43,12 @@ public class GameResource {
 
     @Inject
     CurrentPlayer currentPlayer;
+
+    @Inject
+    GameEventBus eventBus;
+
+    @Inject
+    EventStreams eventStreams;
 
     /** Eigene Spiele (laufende und beendete), zuletzt aktive zuerst. */
     @GET
@@ -74,6 +90,18 @@ public class GameResource {
     @Path("/{id}/resign")
     public GameView resign(@PathParam("id") UUID id) {
         return toView(gameService.resign(currentPlayer.require().id(), id));
+    }
+
+    /** Ereignisse des Spiels als Server-Sent Events, siehe {@link EventStreams}. Nur für beteiligte Spieler. */
+    @GET
+    @Path("/{id}/events")
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    @Blocking
+    public Multi<OutboundSseEvent> events(@PathParam("id") UUID id, @Context Sse sse) {
+        gameService.requireParticipant(currentPlayer.require().id(), id);
+        return eventStreams.stream(sse, new EventStreams.Named("CONNECTED", Map.of("type", "CONNECTED", "gameId", id)),
+                eventBus.subscribe(id).map(event -> new EventStreams.Named(event.type().name(),
+                        GameEventDto.from(event))));
     }
 
     private static GameView toView(PlayerGame game) {

@@ -2,12 +2,14 @@ package de.pwe.schiffeversenken.service;
 
 import de.pwe.schiffeversenken.domain.Coordinate;
 import de.pwe.schiffeversenken.domain.Game;
+import de.pwe.schiffeversenken.domain.GamePhase;
 import de.pwe.schiffeversenken.domain.PlayerSide;
 import de.pwe.schiffeversenken.domain.ShipPlacement;
 import de.pwe.schiffeversenken.domain.ShotOutcome;
 import de.pwe.schiffeversenken.persistence.GameEntity;
 import de.pwe.schiffeversenken.persistence.GameRepository;
 import de.pwe.schiffeversenken.persistence.GameStateMapper;
+import de.pwe.schiffeversenken.persistence.Visibility;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -38,6 +40,9 @@ public class GameService {
     @Inject
     Clock clock;
 
+    @Inject
+    EventPublisher events;
+
     @ConfigProperty(name = "game.abandon.inactive-after")
     Duration abandonInactiveAfter;
 
@@ -45,6 +50,16 @@ public class GameService {
     public PlayerGame get(UUID playerId, UUID gameId) {
         GameEntity entity = access.loadAsParticipant(playerId, gameId);
         return access.view(entity, GameAccess.sideOf(entity, playerId), mapper.read(entity));
+    }
+
+    /**
+     * Prüft, dass der Spieler am Spiel beteiligt ist.
+     *
+     * @throws ServiceException {@link ErrorCode#GAME_NOT_FOUND}
+     */
+    @Transactional
+    public void requireParticipant(UUID playerId, UUID gameId) {
+        access.loadAsParticipant(playerId, gameId);
     }
 
     /** Eigene Spiele (alle Phasen), zuletzt aktive zuerst. */
@@ -59,24 +74,30 @@ public class GameService {
 
     @Transactional
     public PlayerGame placeFleet(UUID playerId, UUID gameId, List<ShipPlacement> fleet) {
-        return act(playerId, gameId, (game, side) -> {
+        PlayerGame placed = act(playerId, gameId, (game, side) -> {
             game.placeFleet(side, fleet);
             return null;
         }).game();
+        events.publishGameEvents(GameEvents.afterFleetPlaced(gameId, placed.viewer(), placed.game()));
+        return placed;
     }
 
     @Transactional
     public FireResult fire(UUID playerId, UUID gameId, Coordinate target) {
         Acted acted = act(playerId, gameId, (game, side) -> game.fire(side, target));
+        events.publishGameEvents(GameEvents.afterShot(gameId, acted.game().viewer(), acted.outcome(),
+                acted.game().game()));
         return new FireResult(acted.outcome(), acted.game());
     }
 
     @Transactional
     public PlayerGame resign(UUID playerId, UUID gameId) {
-        return act(playerId, gameId, (game, side) -> {
+        PlayerGame resigned = act(playerId, gameId, (game, side) -> {
             game.resign(side);
             return null;
         }).game();
+        events.publishGameEvents(GameEvents.afterResign(gameId, resigned.game()));
+        return resigned;
     }
 
     /**
@@ -90,8 +111,14 @@ public class GameService {
         List<GameEntity> inactive = games.listUnfinishedInactiveSince(clock.instant().minus(abandonInactiveAfter));
         for (GameEntity entity : inactive) {
             Game game = mapper.read(entity);
+            // Private Lobbys stehen nicht in der öffentlichen Liste und dürfen dort nicht auftauchen.
+            boolean wasListedLobby = game.phase() == GamePhase.WAITING && entity.visibility == Visibility.PUBLIC;
             game.abandon();
             access.save(entity, game);
+            events.publishGameEvents(GameEvents.afterAbandon(entity.id));
+            if (wasListedLobby) {
+                events.publishLobbyClosed(entity.id);
+            }
         }
         return inactive.size();
     }

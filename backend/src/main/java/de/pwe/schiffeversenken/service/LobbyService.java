@@ -36,6 +36,9 @@ public class LobbyService {
     @Inject
     Clock clock;
 
+    @Inject
+    EventPublisher events;
+
     /** Erstellt eine öffentliche Lobby. Der Ersteller ist Spieler A. */
     @Transactional
     public PlayerGame create(UUID playerId, RuleSet rules) {
@@ -52,6 +55,7 @@ public class LobbyService {
         entity.updatedAt = now;
         mapper.write(game, entity);
         games.persist(entity);
+        events.publishLobbyEvent(LobbyEvent.opened(new OpenLobby(entity.id, creator.nickname, rules, now)));
         return access.view(entity, PlayerSide.A, game);
     }
 
@@ -84,6 +88,8 @@ public class LobbyService {
         game.join();
         entity.playerB = players.findById(playerId);
         access.save(entity, game);
+        events.publishGameEvents(List.of(GameEvent.playerJoined(entity.id, entity.playerB.nickname)));
+        events.publishLobbyClosed(entity.id);
         return access.view(entity, PlayerSide.B, game);
     }
 }

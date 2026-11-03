@@ -137,6 +137,15 @@ Festlegungen (Phase 3):
 - Ein In-Memory-Event-Bus pro Instanz verteilt Ereignisse an die offenen Streams.
 - Ereignistypen: `PLAYER_JOINED`, `FLEET_READY`, `GAME_STARTED`, `SHOT`, `TURN_CHANGED`, `GAME_FINISHED`, `CHAT`.
 - Browser verbinden sich bei Abbruch automatisch neu. Nach dem Reconnect lädt der Client den Zustand per `GET /api/games/{id}` nach.
+Festlegungen (Phase 4):
+- Jeder Stream sendet benannte Ereignisse (`event: <TYPE>`, `data:` mit JSON inkl. `type`). Er beginnt mit `CONNECTED` (Anmeldung am Bus ist dann abgeschlossen, der Client lädt danach den Zustand per `GET`) und sendet periodisch `HEARTBEAT` (`game.sse.heartbeat-interval`).
+- `EventSource` kann keinen `Authorization`-Header senden. Die beiden Event-Endpunkte akzeptieren das Token daher zusätzlich als Query-Parameter `access_token`, alle anderen Endpunkte nicht. Nachteil: Das Token kann in Proxy-Logs landen. Alternative wäre ein `fetch`-basierter SSE-Client im Frontend.
+- Zugriff wie bei `GET /api/games/{id}`: ohne Token 401, Unbeteiligte und unbekannte Spiele 404 (`GAME_NOT_FOUND`).
+- Alle Spieler eines Spiels erhalten dieselben Ereignisse, sie enthalten nie Schiffspositionen (nur das versenkte Schiff bei `SUNK`/`WIN`). Felder: `PLAYER_JOINED` (`nickname`), `FLEET_READY` (`side`), `GAME_STARTED` (`currentTurn`), `SHOT` (`side` = Schütze, `x`, `y`, `result`, ggf. `sunkShip`), `TURN_CHANGED` (`currentTurn`), `GAME_FINISHED` (`phase` = `FINISHED`/`ABANDONED`, `winner`).
+- Reihenfolge je Aktion: Zweite Flotte → `FLEET_READY`, `GAME_STARTED`. Schuss → `SHOT`, dann `GAME_FINISHED` (bei `WIN`) oder `TURN_CHANGED` (wenn der Gegner an der Reihe ist, nicht bei Nochmal-Schießen nach Treffer). Aufgeben und verwaiste Spiele → `GAME_FINISHED`.
+- Ereignisse werden erst nach dem Speichern (Commit) veröffentlicht, abgelehnte Aktionen erzeugen keine. Es gibt keinen Replay und keine `Last-Event-ID`, nach einem Reconnect gilt der Zustand aus `GET`.
+- Lobby-Stream: `LOBBY_OPENED` (mit `lobby` wie in `GET /api/lobbies`) und `LOBBY_CLOSED` (`gameId`, bei Beitritt oder verwaister Lobby).
+- Der Bus blockiert nie bei langsamen Abonnenten (Puffer je Abonnent begrenzt, bei Überlauf endet nur dessen Stream, der Client verbindet neu) und meldet abgebrochene Streams sofort ab. Die Event-Endpunkte sind `@Blocking`, weil sie vor dem Streamen die DB nutzen. `CHAT` folgt mit dem Chat (Phase 6).
 - Skalierung: Bei mehreren Backend-Instanzen müsste der Event-Bus durch Postgres `LISTEN/NOTIFY` oder einen Broker ersetzt werden. Für das Projekt reicht eine Instanz.
 
 ### 3.8 KI-Gegner

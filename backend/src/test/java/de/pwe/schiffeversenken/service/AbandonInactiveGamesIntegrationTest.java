@@ -1,5 +1,7 @@
 package de.pwe.schiffeversenken.service;
 
+import de.pwe.schiffeversenken.api.SseTestClient;
+import de.pwe.schiffeversenken.api.SseTestClient.Event;
 import de.pwe.schiffeversenken.api.TestApi.TwoPlayerGame;
 import de.pwe.schiffeversenken.persistence.GameRepository;
 import io.quarkus.narayana.jta.QuarkusTransaction;
@@ -19,6 +21,8 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * Verwaiste Spiele: Der geplante Job ist im Testprofil abgeschaltet, die Tests rufen den Service direkt auf.
@@ -80,6 +84,35 @@ class AbandonInactiveGamesIntegrationTest {
         getGame(game.tokenA(), game.id())
                 .body("phase", is("FINISHED"))
                 .body("result", is("LOST"));
+    }
+
+    @Test
+    void abandonedGameIsAnnouncedToItsPlayersWithoutWinner() {
+        TwoPlayerGame game = runningStandardGame();
+        makeInactive(game.id());
+
+        try (SseTestClient stream = SseTestClient.open("/api/games/" + game.id() + "/events", game.tokenA())) {
+            gameService.abandonInactiveGames();
+
+            Event event = stream.next();
+            assertEquals("GAME_FINISHED", event.name());
+            assertEquals("ABANDONED", event.json().getString("phase"));
+            assertNull(event.json().get("winner"));
+        }
+    }
+
+    @Test
+    void abandonedLobbyIsRemovedFromTheLobbyStream() {
+        String gameId = createLobby(newPlayer("Ada"));
+        makeInactive(gameId);
+
+        try (SseTestClient stream = SseTestClient.open("/api/lobbies/events", newPlayer("Cara"))) {
+            gameService.abandonInactiveGames();
+
+            Event event = stream.next();
+            assertEquals("LOBBY_CLOSED", event.name());
+            assertEquals(gameId, event.json().getString("gameId"));
+        }
     }
 
     private void makeInactive(String gameId) {

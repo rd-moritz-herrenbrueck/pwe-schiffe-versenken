@@ -5,6 +5,7 @@ import de.pwe.schiffeversenken.domain.RuleViolationException;
 import de.pwe.schiffeversenken.service.ErrorCode;
 import de.pwe.schiffeversenken.service.ServiceException;
 import jakarta.persistence.OptimisticLockException;
+import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
@@ -42,6 +43,8 @@ public class ExceptionMappers {
     }
 
     private static Response error(Status status, String code, String message) {
-        return Response.status(status).entity(new ErrorResponse(code, message)).build();
+        // Explizit JSON: Auch bei Event-Streams (Accept: text/event-stream) kommt der Fehler als JSON.
+        return Response.status(status).type(MediaType.APPLICATION_JSON)
+                .entity(new ErrorResponse(code, message)).build();
     }
 }
