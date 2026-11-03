@@ -45,7 +45,7 @@ Variables (Klartext, keine Zugangsdaten):
 | Name | Beispiel | Pflicht |
 |---|---|---|
 | `VPS_HOST` | IP oder Hostname des VPS | ja |
-| `VPS_USER` | `deploy` | ja |
+| `VPS_USER` | `deploy-schiffe` | ja |
 | `VPS_PORT` | `22` | nein (Standard 22) |
 | `VPS_DEPLOY_PATH` | `/opt/schiffeversenken` | nein (Standard) |
 | `APP_DOMAIN` | `moritzherrenbrueck.de` | ja |
@@ -63,21 +63,33 @@ Für GHCR ist kein eigenes Token nötig. Der Workflow pusht mit `GITHUB_TOKEN`, 
 
 ## Einmalige Einrichtung des VPS
 
+Alle Befehle als `root` auf dem VPS. Pfade sind absolut, damit Schlüssel und `authorized_keys` unabhängig vom aktuellen Verzeichnis beim Deploy-User landen.
+
 ```bash
-# 1. Deploy-User mit Docker-Rechten (als root)
-adduser --disabled-password deploy
-usermod -aG docker deploy
-mkdir -p /opt/schiffeversenken && chown deploy: /opt/schiffeversenken
+# 1. Deploy-User mit Docker-Rechten
+adduser --disabled-password --gecos "" deploy-schiffe     # alternativ: useradd -m -s /bin/bash deploy-schiffe
+usermod -aG docker deploy-schiffe
+install -d -o deploy-schiffe -g deploy-schiffe /opt/schiffeversenken
 
-# 2. SSH-Schlüssel (lokal erzeugen, öffentlichen Teil auf den VPS)
-ssh-keygen -t ed25519 -f schiffe_deploy -C "github-actions-deploy" -N ""
-#    schiffe_deploy.pub  → /home/deploy/.ssh/authorized_keys auf dem VPS
-#    schiffe_deploy      → GitHub-Secret VPS_SSH_KEY, danach lokal löschen
-ssh-keyscan -p 22 <VPS_HOST>   # → GitHub-Secret VPS_KNOWN_HOSTS
+# 2. SSH-Schlüssel nur für das Deployment
+install -d -m 700 -o deploy-schiffe -g deploy-schiffe /home/deploy-schiffe/.ssh
+ssh-keygen -t ed25519 -f /root/schiffe_deploy -C "github-actions-deploy" -N ""
+cat /root/schiffe_deploy.pub >> /home/deploy-schiffe/.ssh/authorized_keys
+chown deploy-schiffe:deploy-schiffe /home/deploy-schiffe/.ssh/authorized_keys
+chmod 600 /home/deploy-schiffe/.ssh/authorized_keys
 
-# 3. Prüfen: aktuelles Docker Compose v2 (muss `up --wait --wait-timeout` kennen)
-docker compose version
+# 3. Zugang testen (muss "OK" und die Docker-Version ausgeben, ohne Passwortabfrage)
+ssh -i /root/schiffe_deploy -o StrictHostKeyChecking=accept-new deploy-schiffe@localhost 'echo OK && docker compose version'
+
+# 4. Werte für die GitHub-Secrets ausgeben
+cat /root/schiffe_deploy                # → VPS_SSH_KEY (inkl. BEGIN-/END-Zeile)
+ssh-keyscan -p 22 <VPS_HOST>            # → VPS_KNOWN_HOSTS (<VPS_HOST> exakt wie in der Variable)
+
+# 5. Privaten Schlüssel vom Server löschen, sobald er in GitHub hinterlegt ist
+rm /root/schiffe_deploy /root/schiffe_deploy.pub
 ```
+
+Falls Schritt 3 nach einem Passwort fragt: In `/etc/ssh/sshd_config` darf `AllowUsers` bzw. `AllowGroups` den User `deploy-schiffe` nicht ausschließen. `docker compose version` muss v2 mit `up --wait --wait-timeout` sein.
 
 Hinweis: Mitglieder der Gruppe `docker` haben faktisch Root-Rechte. Der Schlüssel gehört deshalb ausschließlich in das GitHub-Secret.
 
